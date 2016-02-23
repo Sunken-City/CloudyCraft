@@ -7,10 +7,12 @@ const Vector3Int Vector3Int::UNIT_X = Vector3Int(1, 0, 0);
 const Vector3Int Vector3Int::UNIT_Y = Vector3Int(0, 1, 0);
 const Vector3Int Vector3Int::UNIT_Z = Vector3Int(0, 0, 1);
 
+//-----------------------------------------------------------------------------------
 Vector3Int::Vector3Int()
 {
 }
 
+//-----------------------------------------------------------------------------------
 Vector3Int::Vector3Int(int initialX, int initialY, int initialZ) 
 	: x(initialX)
 	, y(initialY)
@@ -18,6 +20,7 @@ Vector3Int::Vector3Int(int initialX, int initialY, int initialZ)
 {
 }
 
+//-----------------------------------------------------------------------------------
 Vector3Int::Vector3Int(const Vector3Int& other) 
 	: x(other.x)
 	, y(other.y)
@@ -25,6 +28,7 @@ Vector3Int::Vector3Int(const Vector3Int& other)
 {
 }
 
+//-----------------------------------------------------------------------------------
 void Vector3Int::SetXY(int newX, int newY, int newZ)
 {
 	x = newX;
@@ -32,6 +36,7 @@ void Vector3Int::SetXY(int newX, int newY, int newZ)
 	z = newZ;
 }
 
+//-----------------------------------------------------------------------------------
 Vector3Int& Vector3Int::operator+=(const Vector3Int& rhs)
 {
 	this->x += rhs.x;
@@ -40,6 +45,7 @@ Vector3Int& Vector3Int::operator+=(const Vector3Int& rhs)
 	return *this;
 }
 
+//-----------------------------------------------------------------------------------
 Vector3Int& Vector3Int::operator-=(const Vector3Int& rhs)
 {
 	this->x -= rhs.x;
@@ -48,10 +54,20 @@ Vector3Int& Vector3Int::operator-=(const Vector3Int& rhs)
 	return *this;
 }
 
+//-----------------------------------------------------------------------------------
 Vector3Int& Vector3Int::operator*=(const int& scalarConstant)
 {
 	this->x *= scalarConstant;
 	this->y *= scalarConstant;
 	this->z *= scalarConstant;
+	return *this;
+}
+
+//-----------------------------------------------------------------------------------
+Vector3Int& Vector3Int::operator/=(const Vector3Int& rhs)
+{
+	this->x /= rhs.x;
+	this->y /= rhs.y;
+	this->z /= rhs.z;
 	return *this;
 }

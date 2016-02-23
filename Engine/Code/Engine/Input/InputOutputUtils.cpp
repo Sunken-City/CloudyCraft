@@ -2,7 +2,9 @@
 #include "Engine/Core/ErrorWarningAssert.hpp"
 #include <windows.h>
 #include <strsafe.h>
+#include <fstream>
 
+//-----------------------------------------------------------------------------------
 bool LoadBufferFromBinaryFile(std::vector<unsigned char>& out_buffer, const std::string& filePath)
 {
 	FILE* file = nullptr;
@@ -20,6 +22,7 @@ bool LoadBufferFromBinaryFile(std::vector<unsigned char>& out_buffer, const std:
 	return true;
 }
 
+//-----------------------------------------------------------------------------------
 bool SaveBufferToBinaryFile(const std::vector<unsigned char>& buffer, const std::string& filePath)
 {
 	FILE* file = nullptr;
@@ -33,6 +36,38 @@ bool SaveBufferToBinaryFile(const std::vector<unsigned char>& buffer, const std:
 	return true;
 }
 
+//-----------------------------------------------------------------------------------
+bool ReadTextFileIntoVector(std::vector<std::string>& outBuffer, const std::string& filePath)
+{
+	std::ifstream file(filePath);
+	std::string currentLine;
+	while (std::getline(file, currentLine))
+	{
+		outBuffer.push_back(currentLine);
+	}
+	return true;
+}
+
+//-----------------------------------------------------------------------------------
+char* FileReadIntoNewBuffer(const std::string& filePath)
+{
+	FILE* file = nullptr;
+	errno_t errorCode = fopen_s(&file, filePath.c_str(), "rb"); //returns a failure state. If failure, return false.
+	if (errorCode != 0x0)
+	{
+		return false;
+	};
+	fseek(file, 0, SEEK_END);
+	long size = ftell(file);
+	rewind(file);
+	char* buffer = new char[size + 1];
+	fread(buffer, sizeof(unsigned char), size, file);
+	fclose(file);
+	buffer[size] = '\0';
+	return buffer;
+}
+
+//-----------------------------------------------------------------------------------
 std::vector<std::string>* GetFileNamesInFolder(const std::string& filePathSearchString)
 {
 	WIN32_FIND_DATA finder;
@@ -72,4 +107,12 @@ std::vector<std::string>* GetFileNamesInFolder(const std::string& filePathSearch
 
 	FindClose(handleToResults);
 	return fileNames;
+}
+
+//-----------------------------------------------------------------------------------
+//Modified from http://www.cplusplus.com/forum/general/1796/
+bool FileExists(const std::string& filename)
+{
+	std::ifstream ifile(filename);
+	return (bool)ifile;
 }

@@ -14,9 +14,6 @@
     <ClCompile Include="TheGame.cpp">
       <Filter>General</Filter>
     </ClCompile>
-    <ClCompile Include="TheApp.cpp">
-      <Filter>General</Filter>
-    </ClCompile>
     <ClCompile Include="Camera3D.cpp">
       <Filter>General</Filter>
     </ClCompile>
@@ -38,12 +35,24 @@
     <ClCompile Include="Player.cpp">
       <Filter>General</Filter>
     </ClCompile>
+    <ClCompile Include="BlockFace.cpp">
+      <Filter>General</Filter>
+    </ClCompile>
+    <ClCompile Include="GameCommon.cpp">
+      <Filter>General</Filter>
+    </ClCompile>
+    <ClCompile Include="TheApp.cpp">
+      <Filter>General</Filter>
+    </ClCompile>
+    <ClCompile Include="ParticleSystem.cpp">
+      <Filter>General</Filter>
+    </ClCompile>
+    <ClCompile Include="Generator.cpp">
+      <Filter>General</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TheGame.hpp">
-      <Filter>General</Filter>
-    </ClInclude>
-    <ClInclude Include="TheApp.hpp">
       <Filter>General</Filter>
     </ClInclude>
     <ClInclude Include="Camera3D.hpp">
@@ -70,5 +79,31 @@
     <ClInclude Include="Player.hpp">
       <Filter>General</Filter>
     </ClInclude>
+    <ClInclude Include="BlockFace.hpp">
+      <Filter>General</Filter>
+    </ClInclude>
+    <ClInclude Include="TheApp.hpp">
+      <Filter>General</Filter>
+    </ClInclude>
+    <ClInclude Include="ParticleSystem.hpp">
+      <Filter>General</Filter>
+    </ClInclude>
+    <ClInclude Include="Generator.hpp">
+      <Filter>General</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BlockInfo.inl">
+      <Filter>General</Filter>
+    </None>
+    <None Include="Chunk.inl">
+      <Filter>General</Filter>
+    </None>
+    <None Include="World.inl">
+      <Filter>General</Filter>
+    </None>
+    <None Include="Block.inl">
+      <Filter>General</Filter>
+    </None>
   </ItemGroup>
 </Project>

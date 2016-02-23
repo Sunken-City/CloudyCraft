@@ -43,9 +43,9 @@ const std::string Stringf( const int maxLength, const char* format, ... )
 	return returnValue;
 }
 
+//-----------------------------------------------------------------------------------------------
 //Modified from http://stackoverflow.com/a/325000/2619871
 //Returns a new vector with the tokenized string pieces.
-//-----------------------------------------------------------------------------------------------
 std::vector<std::string>* SplitString(const std::string& inputString, const std::string& stringDelimiter)
 {
 	size_t  start = 0, end = 0;
@@ -67,4 +67,34 @@ std::vector<std::string>* SplitString(const std::string& inputString, const std:
 	return stringPieces;
 }
 
+//-----------------------------------------------------------------------------------------------
+//Returns a new vector with the tokenized string pieces found in between both delimiters
+std::vector<std::string>* ExtractStringsBetween(const std::string& inputString, const std::string& beginStringDelimiter, const std::string& endStringDelimiter)
+{
+	size_t  start = 0, end = 0;
+	std::vector<std::string>* stringPieces = new std::vector<std::string>();
+	while (end != std::string::npos)
+	{
+		start = inputString.find(beginStringDelimiter, start);
+		if (start == std::string::npos)
+		{
+			return stringPieces; //We couldn't find the delimiter
+		}
+		else
+		{
+			start += 1; //Move up to the first desired character to grab.
+		}
+		end = inputString.find(endStringDelimiter, start);
+
+		// If at end, use length = maxLength.  Else use length = end - start.
+		stringPieces->push_back(inputString.substr(start,
+			(end == std::string::npos) ? std::string::npos : end - start));
+
+		// If at end, use start = maxSize.  Else use start = end + delimiter.
+		start = ((end > (std::string::npos - endStringDelimiter.size()))
+			? std::string::npos : end + endStringDelimiter.size());
+	}
+
+	return stringPieces;
+}
 

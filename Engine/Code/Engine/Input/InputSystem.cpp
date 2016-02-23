@@ -1,10 +1,11 @@
 #include "Engine/Input/InputSystem.hpp"
 #include "Engine/Input/XInputController.hpp"
 #include "Engine/Math/Vector2Int.hpp"
+
 InputSystem* InputSystem::instance = nullptr;
 
-
-InputSystem::InputSystem(void* hWnd)
+//-----------------------------------------------------------------------------------
+InputSystem::InputSystem(void* hWnd, int maximumNumberOfControllers /*= 0*/)
 : m_frameCounter(0)
 , m_cursorDelta(0, 0)
 , m_cursorPosition(0, 0)
@@ -13,11 +14,14 @@ InputSystem::InputSystem(void* hWnd)
 , m_hWnd(hWnd)
 , m_isScrolling(false)
 , m_linesScrolled(0)
+, m_maximumNumControllers(maximumNumberOfControllers)
+, m_lastPressedChar(0x00) //NULL character
 {
-	m_controllers[0] = new XInputController(0);
-	m_controllers[1] = new XInputController(1);
-	m_controllers[2] = new XInputController(2);
-	m_controllers[3] = new XInputController(3);
+	//Only initialize the number of controllers we need for the game.
+	for (int i = 0; i < m_maximumNumControllers; i++)
+	{
+		m_controllers[i] = new XInputController(i);
+	}
 
 	//Initialize all keys to up
 	for (int keyIndex = 0; keyIndex < NUM_KEYS; ++keyIndex)
@@ -35,17 +39,19 @@ InputSystem::InputSystem(void* hWnd)
 	ShowCursor(TRUE);
 }
 
+//-----------------------------------------------------------------------------------
 InputSystem::~InputSystem()
 {
-	for (int i = 0; i < MAX_CONTROLLERS; i++)
+	for (int i = 0; i < m_maximumNumControllers; i++)
 	{
 		delete m_controllers[i];
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void InputSystem::Update(float deltaTime)
 {
-	for (int i = 0; i < MAX_CONTROLLERS; i++)
+	for (int i = 0; i < m_maximumNumControllers; i++)
 	{
 		m_controllers[i]->Update(deltaTime);
 	}
@@ -70,68 +76,93 @@ void InputSystem::Update(float deltaTime)
 	}
 }
 
+//-----------------------------------------------------------------------------------
 bool InputSystem::IsKeyDown(unsigned char keyCode)
 {
 	return m_isKeyDown[keyCode];
 }
 
+//-----------------------------------------------------------------------------------
 bool InputSystem::WasKeyJustPressed(unsigned char keyCode)
 {
 	return (m_isKeyDown[keyCode] && (m_frameNumberKeyLastChanged[keyCode] == m_frameCounter));
 }
 
+//-----------------------------------------------------------------------------------
 bool InputSystem::IsMouseButtonDown(unsigned char mouseButtonCode)
 {
 	return m_isMouseDown[mouseButtonCode];
 }
 
+//-----------------------------------------------------------------------------------
 bool InputSystem::WasMouseButtonJustPressed(unsigned char mouseButtonCode)
 {
 	return (m_isMouseDown[mouseButtonCode] && (m_frameNumberMouseButtonLastChanged[mouseButtonCode] == m_frameCounter));
 }
 
+//-----------------------------------------------------------------------------------
 bool InputSystem::IsScrolling()
 {
 	return m_isScrolling;
 }
 
+//-----------------------------------------------------------------------------------
 int InputSystem::GetScrollAmountThisFrame()
 {
 	return m_linesScrolled;
 }
 
+//-----------------------------------------------------------------------------------
 void InputSystem::HideMouseCursor()
 {
 	ShowCursor(FALSE);
 	m_isCursorVisible = false;
 }
 
+//-----------------------------------------------------------------------------------
 void InputSystem::ShowMouseCursor()
 {
 	ShowCursor(TRUE);
 	m_isCursorVisible = true;
 }
 
+//-----------------------------------------------------------------------------------
 Vector2Int InputSystem::GetDeltaMouse()
 {
 	return m_cursorDelta;
 }
 
+//-----------------------------------------------------------------------------------
 Vector2Int InputSystem::GetMousePos()
 {
 	return m_cursorPosition;
 }
 
+//-----------------------------------------------------------------------------------
+void InputSystem::SetLastPressedChar(unsigned char asKey)
+{
+	m_lastPressedChar = asKey;
+}
+
+//-----------------------------------------------------------------------------------
+char InputSystem::GetLastPressedChar()
+{
+	return m_lastPressedChar;
+}
+
+//-----------------------------------------------------------------------------------
 void InputSystem::SetCursorPosition(Vector2Int newPosition)
 {
 	SetCursorPos(newPosition.x, newPosition.y);
 }
 
+//-----------------------------------------------------------------------------------
 bool InputSystem::HasFocus()
 {
 	return m_hasFocus;
 }
 
+//-----------------------------------------------------------------------------------
 void InputSystem::SetMouseWheelStatus(short deltaMouseWheel)
 {
 	int MOUSE_WHEEL_SCROLL_AMOUNT_PER_LINE = 120;
@@ -139,13 +170,16 @@ void InputSystem::SetMouseWheelStatus(short deltaMouseWheel)
 	m_linesScrolled = deltaMouseWheel / MOUSE_WHEEL_SCROLL_AMOUNT_PER_LINE;
 }
 
+//-----------------------------------------------------------------------------------
 void InputSystem::AdvanceFrameNumber()
 {
 	m_frameCounter++;
 	m_isScrolling = false;
 	m_linesScrolled = 0;
+	m_lastPressedChar = 0x00;
 }
 
+//-----------------------------------------------------------------------------------
 void InputSystem::SetKeyDownStatus(unsigned char keyCode, bool isNowDown)
 {
 	//If we are getting a keyboard repeat, ignore it when updating "just pressed" values.
@@ -156,6 +190,7 @@ void InputSystem::SetKeyDownStatus(unsigned char keyCode, bool isNowDown)
 	m_isKeyDown[keyCode] = isNowDown;
 }
 
+//-----------------------------------------------------------------------------------
 void InputSystem::SetMouseDownStatus(unsigned char mouseButton, bool isNowDown)
 {
 	//If we are getting a keyboard repeat, ignore it when updating "just pressed" values.

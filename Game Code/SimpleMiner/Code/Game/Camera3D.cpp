@@ -4,6 +4,7 @@
 #include "Game/Player.hpp"
 #include "Game/World.hpp"
 
+//-----------------------------------------------------------------------------------
 Camera3D::Camera3D(Player* player)
 : m_orientation(0.f, 0.f, 0.f)
 , m_position(8.f, 8.f, 100.f)
@@ -12,6 +13,7 @@ Camera3D::Camera3D(Player* player)
 {
 }
 
+//-----------------------------------------------------------------------------------
 Vector3 Camera3D::GetForwardXYZ() const
 {
 	float cosYaw = MathUtils::CosDegrees(m_orientation.yawDegreesAboutZ);
@@ -21,6 +23,7 @@ Vector3 Camera3D::GetForwardXYZ() const
 	return Vector3(cosYaw * cosPitch, sinYaw * cosPitch, -sinPitch);
 }
 
+//-----------------------------------------------------------------------------------
 Vector3 Camera3D::GetForwardXY() const
 {
 	float cosYaw = MathUtils::CosDegrees(m_orientation.yawDegreesAboutZ);
@@ -28,12 +31,14 @@ Vector3 Camera3D::GetForwardXY() const
 	return Vector3(cosYaw, sinYaw, 0.f);
 }
 
+//-----------------------------------------------------------------------------------
 Vector3 Camera3D::GetLeftXY() const
 {
 	Vector3 forwardXY = GetForwardXY();
 	return Vector3(-forwardXY.y, forwardXY.x, 0.f);
 }
 
+//-----------------------------------------------------------------------------------
 void Camera3D::UpdateViewFromCamera() const
 {
 	if (m_cameraMode == CameraMode::FIXED_ANGLE_TRACKING)

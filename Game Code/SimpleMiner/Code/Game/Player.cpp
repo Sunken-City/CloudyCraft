@@ -20,31 +20,32 @@ const Vector3 Player::EYE_OFFSET = Vector3(0.0f, 0.0f, EYE_HEIGHT - HALF_PLAYER_
 float Player::GRAVITY_CONSTANT = 9.81f; 
 Vector3 Player::ACCELERATION_DUE_TO_GRAVITY = Vector3(0.0f, 0.0f, -GRAVITY_CONSTANT);
 
+//-----------------------------------------------------------------------------------
 Player::Player(World* world, PhysicsMode physicsMode /*= PhysicsMode::NOCLIP*/)
 : m_camera(Camera3D(this))
 , m_world(world)
 , m_physicsMode(physicsMode)
-, m_drawBoundingBox(true)
 , m_position(8.f, 8.f, 100.f)
 , m_velocity(0.0f, 0.0f, 0.0f)
 , m_acceleration(0.0f, 0.0f, 0.0f)
 , m_boundingBox(Vector3(-HALF_PLAYER_WIDTH, -HALF_PLAYER_WIDTH, -HALF_PLAYER_HEIGHT), Vector3(HALF_PLAYER_WIDTH, HALF_PLAYER_WIDTH, HALF_PLAYER_HEIGHT))
-, m_heldBlock(DIRT)
+, m_heldBlock(BlockType::SAND)
 , m_texture(Texture::CreateOrGetTexture("Data/Images/Pico.png"))
 , m_breakingBlockTimer(0.0f)
 , m_blockBreakAnimation(new SpriteAnim(*BlockDefinition::m_blockSheet, 1.0f, AnimMode::ONE_SHOT, 0xE0, 0xE9))
 , m_isDigging(false)
 , m_uiSelectSound(AudioSystem::instance->CreateOrGetSound("Data/SFX/select.wav"))
-, m_highlightedUIBlock(0)
+, m_highlightedUIBlock(4) //5th slot, the middle entry
 , m_firstBlockInInventory(BlockType::STONE)
 {
-
 }
 
+//-----------------------------------------------------------------------------------
 Player::~Player()
 {
 }
 
+//-----------------------------------------------------------------------------------
 void Player::Update(float deltaTime)
 {
 	UpdateFromKeyboard(deltaTime);
@@ -53,18 +54,18 @@ void Player::Update(float deltaTime)
 
 }
 
+//-----------------------------------------------------------------------------------
 void Player::Render() const
 {
-	if (m_drawBoundingBox)
+	if (g_renderDebug)
 	{
 		RenderPlayerBoundingBox();
+		//Raycast Debug
+		TheRenderer::instance->DrawLine(m_playerEyes, m_target, m_raycastColor, 5.0f);
+		TheRenderer::instance->EnableDepthTest(false);
+		TheRenderer::instance->DrawLine(m_playerEyes, m_target, m_raycastColor, 1.0f);
+		DrawDebugPoints(10.0f, true);
 	}
-	Render2DPlayerTexture();
-
-	//Raycast Debug
-	TheRenderer::instance->DrawLine(m_playerEyes, m_target, m_raycastColor, 5.0f);
-	TheRenderer::instance->EnableDepthTest(false);
-	TheRenderer::instance->DrawLine(m_playerEyes, m_target, m_raycastColor, 1.0f);
 
 	//Highlight face when impacted.
 	if (m_raycastResult.didImpact)
@@ -75,9 +76,13 @@ void Player::Render() const
 			RenderDiggingAnimation();
 		}
 	}
-	DrawDebugPoints(10.0f, true);
+	if (m_camera.m_cameraMode != Camera3D::CameraMode::FIRST_PERSON)
+	{
+		Render2DPlayerTexture();
+	}
 }
 
+//-----------------------------------------------------------------------------------
 void Player::RenderDiggingAnimation() const
 {
 	TheRenderer::instance->EnableDepthTest(true);
@@ -99,6 +104,7 @@ void Player::RenderDiggingAnimation() const
 	TheRenderer::instance->DrawTexturedFace(bottom, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
 }
 
+//-----------------------------------------------------------------------------------
 void Player::RenderFaceHighlightOnRaycastBlock() const
 {
 	Vector3 vertOffset = m_camera.GetForwardXYZ() * -0.01f;
@@ -119,6 +125,7 @@ void Player::RenderFaceHighlightOnRaycastBlock() const
 	TheRenderer::instance->DrawVertexArray(vertexes.data(), vertexes.size(), TheRenderer::LINE_LOOP);
 }
 
+//-----------------------------------------------------------------------------------
 void Player::Render2DPlayerTexture() const
 {
 	//Render Player
@@ -131,6 +138,7 @@ void Player::Render2DPlayerTexture() const
 	TheRenderer::instance->DrawTexturedFace(playerQuad, Vector2::ZERO, Vector2::ONE, m_texture, RGBA::WHITE);
 }
 
+//-----------------------------------------------------------------------------------
 void Player::RenderPlayerBoundingBox() const
 {
 	TheRenderer::instance->EnableDepthTest(true);
@@ -141,6 +149,7 @@ void Player::RenderPlayerBoundingBox() const
 	TheRenderer::instance->DrawAABBBoundingBox(m_boundingBox + m_position, RGBA::MAGENTA);
 }
 
+//-----------------------------------------------------------------------------------
 RaycastResult3D Player::RaycastForMovementCheck(WorldPosition proposedPosition)
 {
 	RaycastResult3D result;
@@ -195,6 +204,20 @@ RaycastResult3D Player::RaycastForMovementCheck(WorldPosition proposedPosition)
 	RaycastResult3D topTopLeftCast			= m_world->Raycast(topTopLeftStart,			topTopLeftEnd);
 	RaycastResult3D topTopRightCast			= m_world->Raycast(topTopRightStart,		topTopRightEnd);
 
+	m_summedCollision = Vector3Int::ZERO;
+	m_summedCollision += bottomBottomLeftCast.impactSurfaceNormal;
+	m_summedCollision += bottomBottomRightCast.impactSurfaceNormal;
+	m_summedCollision += topBottomLeftCast.impactSurfaceNormal;
+	m_summedCollision += topBottomRightCast.impactSurfaceNormal;
+	m_summedCollision += bottomMiddleLeftCast.impactSurfaceNormal;
+	m_summedCollision += bottomMiddleRightCast.impactSurfaceNormal;
+	m_summedCollision += topMiddleLeftCast.impactSurfaceNormal;
+	m_summedCollision += topMiddleRightCast.impactSurfaceNormal;
+	m_summedCollision += bottomTopLeftCast.impactSurfaceNormal;
+	m_summedCollision += bottomTopRightCast.impactSurfaceNormal;
+	m_summedCollision += topTopLeftCast.impactSurfaceNormal;
+	m_summedCollision += topTopRightCast.impactSurfaceNormal;
+
 	result = bottomBottomLeftCast.impactFraction < result.impactFraction ? bottomBottomLeftCast : result;
 	result = bottomBottomRightCast.impactFraction < result.impactFraction ? bottomBottomRightCast : result;
 	result = topBottomLeftCast.impactFraction < result.impactFraction ? topBottomLeftCast : result;
@@ -210,9 +233,13 @@ RaycastResult3D Player::RaycastForMovementCheck(WorldPosition proposedPosition)
 	result = topTopLeftCast.impactFraction < result.impactFraction ? topTopLeftCast : result;
 	result = topTopRightCast.impactFraction < result.impactFraction ? topTopRightCast : result;
 
+	m_summedCollision.x /= (m_summedCollision.x == 0) ? 1 : m_summedCollision.x;
+	m_summedCollision.y /= (m_summedCollision.y == 0) ? 1 : m_summedCollision.y;
+	m_summedCollision.z /= (m_summedCollision.z == 0) ? 1 : m_summedCollision.z;
 	return result;
 }
 
+//-----------------------------------------------------------------------------------
 void Player::LineOfSightRaycast(float deltaTime)
 {
 	Vector3 eyeAdjustedPosition = m_position + EYE_OFFSET;
@@ -287,6 +314,7 @@ void Player::LineOfSightRaycast(float deltaTime)
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void Player::UpdateFromKeyboard(float deltaTime)
 {
 	SelectBlockFromInventory();
@@ -299,10 +327,6 @@ void Player::UpdateFromKeyboard(float deltaTime)
 	{
 		ClearDebugPoints();
 	}
-	if (InputSystem::instance->WasKeyJustPressed('B'))
-	{
-		m_drawBoundingBox = !m_drawBoundingBox;
-	}
 	if (InputSystem::instance->WasKeyJustPressed('V'))
 	{
 		switch (m_physicsMode)
@@ -313,10 +337,10 @@ void Player::UpdateFromKeyboard(float deltaTime)
 			m_velocity = Vector3::ZERO;
 			break;
 		case Player::PhysicsMode::FLYING:
-			m_physicsMode = PhysicsMode::NORMAL;
+			m_physicsMode = PhysicsMode::WALKING;
 			m_velocity = Vector3::ZERO;
 			break;
-		case Player::PhysicsMode::NORMAL:
+		case Player::PhysicsMode::WALKING:
 			m_physicsMode = PhysicsMode::NOCLIP;
 			m_acceleration = Vector3::ZERO;
 			m_velocity = Vector3::ZERO;
@@ -355,175 +379,138 @@ void Player::UpdateFromKeyboard(float deltaTime)
 	m_camera.m_orientation.pitchDegreesAboutY = MathUtils::Clamp(proposedPitch, -89.9f, 89.9f);
 }
 
+//-----------------------------------------------------------------------------------
 void Player::MoveFromKeyboard(float deltaTime)
 {
-	const float BASE_MOVE_SPEED = 4.5f;
+	const float BASE_MOVE_SPEED = 6.0f;
 	const float BASE_JUMP_HEIGHT = 5.5f;
+	const float MAX_HORIZONTAL_VELOCITY = 10.0f;
 	float moveSpeed = 0.0f;
-	Vector3 potentialOffset = Vector3::ZERO;
+	moveSpeed = (InputSystem::instance->IsKeyDown(InputSystem::ExtraKeys::SHIFT)) ? BASE_MOVE_SPEED * 8.0f : moveSpeed = BASE_MOVE_SPEED;
 
-	if (InputSystem::instance->IsKeyDown(InputSystem::ExtraKeys::SHIFT))
+	switch (m_physicsMode)
 	{
-		moveSpeed = BASE_MOVE_SPEED * 8.0f;
-	}
-	else
+	case PhysicsMode::NOCLIP:
 	{
-		moveSpeed = BASE_MOVE_SPEED;
+		if (InputSystem::instance->IsKeyDown('W')) { m_position += m_camera.GetForwardXY() * (moveSpeed * deltaTime); }
+		if (InputSystem::instance->IsKeyDown('S')) { m_position -= m_camera.GetForwardXY() * (moveSpeed * deltaTime); }
+		if (InputSystem::instance->IsKeyDown('A')) { m_position += m_camera.GetLeftXY() * (moveSpeed * deltaTime); }
+		if (InputSystem::instance->IsKeyDown('D')) { m_position -= m_camera.GetLeftXY() * (moveSpeed * deltaTime); }
+		if (InputSystem::instance->IsKeyDown(' ')) { m_position += Vector3::UNIT_Z * (moveSpeed * deltaTime); }
+		if (InputSystem::instance->IsKeyDown('Z')) { m_position -= Vector3::UNIT_Z * (moveSpeed * deltaTime); }
+		break;
 	}
-	if (InputSystem::instance->IsKeyDown('W'))
+	case PhysicsMode::FLYING:
 	{
-		Vector3 cameraForwardXY = m_camera.GetForwardXY();
-		if (m_physicsMode == PhysicsMode::FLYING)
-		{
-			m_velocity += cameraForwardXY;
-			m_velocity = Vector3::GetNormalized(m_velocity) * moveSpeed;
-		}
-		else
-		{
-			potentialOffset += cameraForwardXY * (moveSpeed * deltaTime);
-		}
+		if (InputSystem::instance->IsKeyDown('W')) { m_velocity += Vector3::GetNormalized(m_camera.GetForwardXY()) * (moveSpeed / 8.0f); }
+		if (InputSystem::instance->IsKeyDown('S')) { m_velocity -= Vector3::GetNormalized(m_camera.GetForwardXY()) * (moveSpeed / 8.0f); }
+		if (InputSystem::instance->IsKeyDown('A')) { m_velocity += Vector3::GetNormalized(m_camera.GetLeftXY()) * (moveSpeed / 8.0f); }
+		if (InputSystem::instance->IsKeyDown('D')) { m_velocity -= Vector3::GetNormalized(m_camera.GetLeftXY()) * (moveSpeed / 8.0f); }
+		if (InputSystem::instance->IsKeyDown(' ')) { m_velocity += Vector3::UNIT_Z * (moveSpeed / 8.0f); }
+		if (InputSystem::instance->IsKeyDown('Z')) { m_velocity -= Vector3::UNIT_Z * (moveSpeed / 8.0f); }
+		break;
 	}
-	if (InputSystem::instance->IsKeyDown('S'))
+	case PhysicsMode::WALKING:
 	{
-		Vector3 cameraForwardXY = m_camera.GetForwardXY();
-		if (m_physicsMode == PhysicsMode::FLYING)
-		{
-			m_velocity -= cameraForwardXY;
-			m_velocity = Vector3::GetNormalized(m_velocity) * moveSpeed;
-		}
-		else
-		{
-			potentialOffset -= cameraForwardXY * (moveSpeed * deltaTime);
-		}
+		Vector3 inputVector = Vector3::ZERO;
+		if (InputSystem::instance->IsKeyDown('W')) { inputVector += Vector3::GetNormalized(m_camera.GetForwardXY()); }
+		if (InputSystem::instance->IsKeyDown('S')) { inputVector -= Vector3::GetNormalized(m_camera.GetForwardXY()); }
+		if (InputSystem::instance->IsKeyDown('A')) { inputVector += Vector3::GetNormalized(m_camera.GetLeftXY()); }
+		if (InputSystem::instance->IsKeyDown('D')) { inputVector -= Vector3::GetNormalized(m_camera.GetLeftXY()); }
+		if (InputSystem::instance->IsKeyDown(' ') && IsOnGround()) { m_velocity += Vector3::UNIT_Z * BASE_JUMP_HEIGHT; }
+		Vector3 velocity = Vector3::GetNormalized(inputVector) * moveSpeed;
+		m_velocity.x = velocity.x;
+		m_velocity.y = velocity.y;
+		break;
 	}
-	if (InputSystem::instance->IsKeyDown('D'))
-	{
-		Vector3 cameraLeftXY = m_camera.GetLeftXY();
-		if (m_physicsMode == PhysicsMode::FLYING)
-		{
-			m_velocity -= cameraLeftXY;
-			m_velocity = Vector3::GetNormalized(m_velocity) * moveSpeed;
-		}
-		else
-		{
-			potentialOffset -= cameraLeftXY * (moveSpeed * deltaTime);
-		}
+	default:
+		break;
 	}
-	if (InputSystem::instance->IsKeyDown('A'))
-	{
-		Vector3 cameraLeftXY = m_camera.GetLeftXY();
-		if (m_physicsMode == PhysicsMode::FLYING)
-		{
-			m_velocity += cameraLeftXY;
-			m_velocity = Vector3::GetNormalized(m_velocity) * moveSpeed;
-		}
-		else
-		{
-			potentialOffset += cameraLeftXY * (moveSpeed * deltaTime);
-		}
-	}
-	if (InputSystem::instance->IsKeyDown(' '))
-	{
-		if (m_physicsMode == PhysicsMode::NORMAL)
-		{
-			if (IsOnGround())
-			{
-				m_velocity += Vector3::UNIT_Z * BASE_JUMP_HEIGHT;
-			}
-		}
-		else if (m_physicsMode == PhysicsMode::FLYING)
-		{
-			m_velocity += Vector3::UNIT_Z;
-			m_velocity = Vector3::GetNormalized(m_velocity) * moveSpeed;
-		}
-		else
-		{
-			potentialOffset += Vector3(0.f, 0.f, 1.f) * (moveSpeed * deltaTime);
-		}
-	}
-	if (InputSystem::instance->IsKeyDown('Z') && m_physicsMode != PhysicsMode::NORMAL)
-	{
-		if (m_physicsMode == PhysicsMode::FLYING)
-		{
-			m_velocity -= Vector3::UNIT_Z;
-			m_velocity = Vector3::GetNormalized(m_velocity) * moveSpeed;
-		}
-		else
-		{
-			potentialOffset += Vector3(0.f, 0.f, -1.f) * (moveSpeed * deltaTime);
-		}
-	}
-
-	UpdatePhysics(deltaTime, potentialOffset);
+	UpdatePhysics(deltaTime);
 }
 
-void Player::UpdatePhysics(float deltaTime, Vector3 &potentialOffset)
+//-----------------------------------------------------------------------------------
+void Player::UpdatePhysics(float deltaTime)
 {
-	if (m_physicsMode == PhysicsMode::NORMAL)
+	if (m_physicsMode == PhysicsMode::WALKING)
 	{
 		m_acceleration = ACCELERATION_DUE_TO_GRAVITY;
+		//Have our speed fall off whenever we move.
+		m_velocity.x *= 0.90f; 
+		m_velocity.y *= 0.90f; 
 	}
 	if (m_physicsMode == PhysicsMode::FLYING)
 	{
-		m_velocity *= 0.90f;
+		//Have our speed fall off whenever we move.
+		m_velocity *= 0.90f; 
 	}
 	m_velocity += m_acceleration * deltaTime;
-	potentialOffset += m_velocity * deltaTime;
-
-	if (m_physicsMode != PhysicsMode::NOCLIP && potentialOffset != Vector3::ZERO)
+	if (m_physicsMode != PhysicsMode::NOCLIP && m_velocity != Vector3::ZERO)
 	{
-		float remainingDistance = 1.0f;
-		while (remainingDistance > 0.0f)
+		Vector3Int TheRealSummedCollision = Vector3Int::ZERO;
+		float secondsLeft = deltaTime;
+		while (secondsLeft > 0.0f)
 		{
-			RaycastResult3D shortestRaycast = RaycastForMovementCheck(m_position + potentialOffset);
+			Vector3 deltaMove = m_velocity * secondsLeft;
+			RaycastResult3D shortestRaycast = RaycastForMovementCheck(m_position + deltaMove);
 			if (!shortestRaycast.didImpact)
 			{
-				m_position += potentialOffset;
-				remainingDistance = 0.0f;
+				m_position += deltaMove;
+				secondsLeft = 0.0f;
+			}
+			else if (shortestRaycast.wasInsideBlockAlready == true)
+			{
+				m_position += ((Vector3)(shortestRaycast.impactSurfaceNormal) * COLLISION_AVOIDANCE_OFFSET * 0.5f);
+				secondsLeft = 0.0f;
 			}
 			else
 			{
-				Vector3 validMovement = (potentialOffset * (shortestRaycast.impactFraction - 0.0001f));
+				Vector3 validMovement = (deltaMove * (shortestRaycast.impactFraction));
 				if (validMovement == Vector3::ZERO)
 				{
-					remainingDistance = 0.0f;
+					secondsLeft = 0.0f;
 				}
 				Vector3 collisionNorm = shortestRaycast.impactSurfaceNormal;
 				if (collisionNorm == Vector3::ZERO)
 				{
-					collisionNorm = Vector3::GetNormalized(potentialOffset);
+					collisionNorm = Vector3::GetNormalized(deltaMove);
 				}
 				m_position += validMovement + (collisionNorm * COLLISION_AVOIDANCE_OFFSET);
-				remainingDistance -= shortestRaycast.impactFraction;
-				m_velocity = MathUtils::RemoveDirectionalComponent(m_velocity, collisionNorm);
-				if (collisionNorm.x != 0.0f)
+				secondsLeft -= shortestRaycast.impactFraction * secondsLeft;
+				if (shortestRaycast.impactSurfaceNormal.x != 0.0f)
 				{
-					potentialOffset.x = 0.0f;
+					m_velocity.x = 0.0f;
 				}
-				if (collisionNorm.y != 0.0f)
+				if (shortestRaycast.impactSurfaceNormal.y != 0.0f)
 				{
-					potentialOffset.y = 0.0f;
+					m_velocity.y = 0.0f;
 				}
-				if (collisionNorm.z != 0.0f)
+				if (shortestRaycast.impactSurfaceNormal.z != 0.0f)
 				{
-					potentialOffset.z = 0.0f;
+					m_velocity.z = 0.0f;
 				}
+				if (m_velocity == Vector3::ZERO)
+				{
+					secondsLeft = 0.0f;
+				}
+				TheRealSummedCollision = m_summedCollision;
 			}
 		}
 	}
-	else
-	{
-		m_position += potentialOffset;
-	}
 }
 
+//-----------------------------------------------------------------------------------
 void Player::SelectBlockFromInventory()
 {
 	const int MAX_SCROLL_AMOUNT = (int)BlockType::NUM_BLOCKS - NUM_INVENTORY_SLOTS;
 	int numLinesScrolled = InputSystem::instance->GetScrollAmountThisFrame();
 	if (numLinesScrolled != 0)
 	{
-		m_firstBlockInInventory = (BlockType)MathUtils::Clamp(m_firstBlockInInventory + numLinesScrolled, 1, MAX_SCROLL_AMOUNT);
+		int newFirstIndex = (m_firstBlockInInventory + numLinesScrolled);
+		//Wrap around positive and negative directions
+		newFirstIndex           = newFirstIndex >= (int)BlockType::NUM_BLOCKS ? (m_firstBlockInInventory + numLinesScrolled) % (int)BlockType::NUM_BLOCKS : newFirstIndex;
+		m_firstBlockInInventory = (BlockType)(newFirstIndex < 0 ? ((int)BlockType::NUM_BLOCKS) + numLinesScrolled : newFirstIndex);
+
 		AudioSystem::instance->PlaySound(m_uiSelectSound);
 	}
 	if (InputSystem::instance->WasKeyJustPressed('1'))
@@ -571,9 +558,10 @@ void Player::SelectBlockFromInventory()
 		m_highlightedUIBlock = 8;
 		AudioSystem::instance->PlaySound(m_uiSelectSound);
 	}
-	m_heldBlock = (uchar)(m_firstBlockInInventory + m_highlightedUIBlock);
+	m_heldBlock = (uchar)((m_firstBlockInInventory + m_highlightedUIBlock) % (int)BlockType::NUM_BLOCKS);
 }
 
+//-----------------------------------------------------------------------------------
 bool Player::IsOnGround()
 {
 	Vector3 bottomBottomLeftStart = m_position + Vector3(-COLLISION_AVOIDANCE_PLAYER_WIDTH, -COLLISION_AVOIDANCE_PLAYER_WIDTH, -COLLISION_AVOIDANCE_HALF_PLAYER_HEIGHT);

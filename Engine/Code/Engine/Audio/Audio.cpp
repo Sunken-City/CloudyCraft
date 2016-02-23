@@ -11,7 +11,6 @@ AudioSystem::AudioSystem()
 	InitializeFMOD();
 }
 
-
 //---------------------------------------------------------------------------
 // FMOD startup code based on "GETTING STARTED With FMOD Ex Programmer’s API for Windows" document
 //	from the FMOD programming API at http://www.fmod.org/download/
@@ -89,7 +88,6 @@ void AudioSystem::InitializeFMOD()
 	}
 }
 
-
 //---------------------------------------------------------------------------
 AudioSystem::~AudioSystem()
 {
@@ -98,7 +96,6 @@ AudioSystem::~AudioSystem()
 // 	result = FMOD_System_Release( m_fmodSystem );
 // 	m_fmodSystem = nullptr;
 }
-
 
 //---------------------------------------------------------------------------
 void AudioSystem::StopChannel(AudioChannelHandle channel)
@@ -110,7 +107,6 @@ void AudioSystem::StopChannel(AudioChannelHandle channel)
 	}
 }
 
-
 //---------------------------------------------------------------------------
 void AudioSystem::StopSound(SoundID soundID)
 {
@@ -121,7 +117,6 @@ void AudioSystem::StopSound(SoundID soundID)
 		fmodChannel->stop();
 	}
 }
-
 
 //---------------------------------------------------------------------------
 SoundID AudioSystem::CreateOrGetSound( const std::string& soundFileName )
@@ -147,7 +142,6 @@ SoundID AudioSystem::CreateOrGetSound( const std::string& soundFileName )
 	return MISSING_SOUND_ID;
 }
 
-
 //---------------------------------------------------------------------------
 void AudioSystem::PlaySound( SoundID soundID, float volumeLevel )
 {
@@ -168,7 +162,7 @@ void AudioSystem::PlaySound( SoundID soundID, float volumeLevel )
 	m_channels[soundID] = channelAssignedToSound;
 }
 
-
+//-----------------------------------------------------------------------------------
 void AudioSystem::PlayLoopingSound(SoundID soundID, float volumeLevel)
 {
 	PlaySound(soundID, volumeLevel);
@@ -184,7 +178,6 @@ void AudioSystem::Update( float deltaSeconds )
 	//Unused
 	(void)(deltaSeconds);
 }
-
 
 //---------------------------------------------------------------------------
 void AudioSystem::ValidateResult( FMOD_RESULT result )

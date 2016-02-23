@@ -2,18 +2,23 @@
 #include "Engine/Math/Vector2.hpp"
 #include "Engine/Math/Vector3Int.hpp"
 #include "Engine/Math/MathUtils.hpp"
-#include <math.h>
+#include <cmath>
 
-const Vector3 Vector3::ZERO = Vector3(0.0f, 0.0f, 0.0f);
-const Vector3 Vector3::ONE = Vector3(1.0f, 1.0f, 1.0f);
-const Vector3 Vector3::UNIT_X = Vector3(1.0f, 0.0f, 0.0f);
-const Vector3 Vector3::UNIT_Y = Vector3(0.0f, 1.0f, 0.0f);
-const Vector3 Vector3::UNIT_Z = Vector3(0.0f, 0.0f, 1.0f);
+const Vector3 Vector3::ZERO    = Vector3(0.0f, 0.0f, 0.0f);
+const Vector3 Vector3::ONE     = Vector3(1.0f, 1.0f, 1.0f);
+const Vector3 Vector3::UNIT_X  = Vector3(1.0f, 0.0f, 0.0f);
+const Vector3 Vector3::UNIT_Y  = Vector3(0.0f, 1.0f, 0.0f);
+const Vector3 Vector3::UNIT_Z  = Vector3(0.0f, 0.0f, 1.0f);
+const Vector3 Vector3::FORWARD = Vector3(0.0f, 0.0f, 1.0f);
+const Vector3 Vector3::UP      = Vector3(0.0f, 1.0f, 0.0f);
+const Vector3 Vector3::RIGHT   = Vector3(1.0f, 0.0f, 0.0f);
 
+//-----------------------------------------------------------------------------------
 Vector3::Vector3()
 {
 }
 
+//-----------------------------------------------------------------------------------
 Vector3::Vector3(float initialX, float initialY, float initialZ)
 	: x(initialX)
 	, y(initialY)
@@ -21,6 +26,7 @@ Vector3::Vector3(float initialX, float initialY, float initialZ)
 {
 }
 
+//-----------------------------------------------------------------------------------
 Vector3::Vector3(const Vector3& other) 
 	: x(other.x)
 	, y(other.y)
@@ -28,6 +34,7 @@ Vector3::Vector3(const Vector3& other)
 {
 }
 
+//-----------------------------------------------------------------------------------
 Vector3::Vector3(const Vector3Int& other)
 : x(static_cast<float>(other.x))
 , y(static_cast<float>(other.y))
@@ -36,6 +43,14 @@ Vector3::Vector3(const Vector3Int& other)
 
 }
 
+Vector3::Vector3(float initialValue)
+{
+	x = initialValue;
+	y = initialValue;
+	z = initialValue;
+}
+
+//-----------------------------------------------------------------------------------
 void Vector3::SetXYZ(float newX, float newY, float newZ)
 {
 	x = newX;
@@ -43,11 +58,13 @@ void Vector3::SetXYZ(float newX, float newY, float newZ)
 	z = newZ;
 }
 
+//-----------------------------------------------------------------------------------
 float Vector3::CalculateMagnitude() const
 {
 	return sqrt((x*x) + (y*y) + (z*z));
 }
 
+//-----------------------------------------------------------------------------------
 void Vector3::Normalize()
 {
 	float len = CalculateMagnitude();
@@ -57,6 +74,17 @@ void Vector3::Normalize()
 	z /= len;
 }
 
+//-----------------------------------------------------------------------------------
+Vector3 Vector3::Cross(const Vector3& first, const Vector3& second)
+{
+	Vector3 crossProduct;
+	crossProduct.x = (first.y * second.z) - (first.z * second.y);
+	crossProduct.y = -((first.x * second.z) - (first.z * second.x));
+	crossProduct.z = (first.x * second.y) - (first.y * second.x);
+	return crossProduct;
+}
+
+//-----------------------------------------------------------------------------------
 Vector3 Vector3::GetNormalized(const Vector3& input)
 {
 	float len = input.CalculateMagnitude();
@@ -67,6 +95,17 @@ Vector3 Vector3::GetNormalized(const Vector3& input)
 	return Vector3(input.x / len, input.y / len, input.z / len);
 }
 
+//-----------------------------------------------------------------------------------
+Vector3 Vector3::GetMidpoint(const Vector3& start, const Vector3& end)
+{
+	Vector3 midpoint;
+	midpoint.x = (start.x + end.x) / 2.0f;
+	midpoint.y = (start.y + end.y) / 2.0f;
+	midpoint.z = (start.z + end.z) / 2.0f;
+	return(midpoint);
+}
+
+//-----------------------------------------------------------------------------------
 Vector3& Vector3::operator+=(const Vector3& rhs)
 {
 	this->x += rhs.x;
@@ -75,6 +114,7 @@ Vector3& Vector3::operator+=(const Vector3& rhs)
 	return *this;
 }
 
+//-----------------------------------------------------------------------------------
 Vector3& Vector3::operator-=(const Vector3& rhs)
 {
 	this->x -= rhs.x;
@@ -83,6 +123,7 @@ Vector3& Vector3::operator-=(const Vector3& rhs)
 	return *this;
 }
 
+//-----------------------------------------------------------------------------------
 Vector3& Vector3::operator*=(const float& scalarConstant)
 {
 	this->x *= scalarConstant;

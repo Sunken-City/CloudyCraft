@@ -1,24 +1,26 @@
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <thread>
-
 #include "Game/World.hpp"
 #include "Game/BlockDefinition.h"
 #include "Game/TheGame.hpp"
 #include "Game/Camera3D.hpp"
 #include "Game/Player.hpp"
+#include "Game/Generator.hpp"
 #include "Engine/Input/InputOutputUtils.hpp"
 #include "Engine/Renderer/Face.hpp"
 #include "Engine/Renderer/Vertex.hpp"
+#include "Engine/Time/Time.hpp"
 #include <algorithm>
 #include <regex>
+#include <string.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <thread>
 
 std::vector<Vertex_PCT> g_debugPoints;
-std::set<ChunkCoords> g_requestedChunkGenerationList;
-std::set<ChunkCoords> g_requestedChunkLoadList;
-std::set<ChunkCoords> g_chunksOnDisk;
-std::deque<Chunk*> g_requestedChunkSaveList;
-std::deque<Chunk*> g_readyToActivateChunks; 
+std::set<PrioritizedChunkCoords> g_requestedChunkGenerationSet;
+std::set<PrioritizedChunkCoords> g_requestedChunkLoadSet;
+std::set<WorldChunkCoordsPair> g_chunksOnDiskSet;
+std::deque<Chunk*> g_requestedChunkSaveDeque;
+std::deque<Chunk*> g_readyToActivateChunksDeque; 
 ProfilingID g_generationProfiling;
 ProfilingID g_loadingProfiling;
 ProfilingID g_savingProfiling;
@@ -27,11 +29,16 @@ ProfilingID g_temporaryProfiling;
 extern CRITICAL_SECTION g_chunkListsCriticalSection;
 extern CRITICAL_SECTION g_diskIOCriticalSection;
 
-World::World()
-: m_chunkAddRemoveBalance(0)
-, m_isChunkGenerationThreadDone(false)
-, m_chunkGenerationThread(ChunkGenerationThreadMain)
-, m_diskIOThread(ChunkIOThreadMain)
+//-----------------------------------------------------------------------------------
+World::World(int id, const RGBA& skyLight, const RGBA& skyColor, Generator* generator)
+	: m_worldID(id)
+	, m_chunkAddRemoveBalance(0)
+	, m_isChunkGenerationThreadDone(false)
+	, m_chunkGenerationThread(ChunkGenerationThreadMain)
+	, m_diskIOThread(ChunkIOThreadMain)
+	, m_skyLight(skyLight) //Daylight 0xDDEEFF00  Sunset 0xFF990000  Vaporwave 0xFF819C00
+	, m_skyColor(skyColor)
+	, m_generator(generator)
 {
 	BlockDefinition::Initialize();
 	FindAllChunksOnDisk();
@@ -46,6 +53,7 @@ World::World()
 	m_diskIOThread.detach();
 }
 
+//-----------------------------------------------------------------------------------
 World::~World()
 {
 	//Wait for the other thread to finish shutting down, then continue.
@@ -65,6 +73,7 @@ World::~World()
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void World::Update(float deltaTime)
 {
 	RequestNeededChunks();
@@ -77,21 +86,44 @@ void World::Update(float deltaTime)
 	}
 	UpdateLighting();
 	UpdateVertexArrays();
-
 }
 
+//-----------------------------------------------------------------------------------
 void World::UpdateVertexArrays()
 {
-	for (auto currentChunkPair : m_activeChunks)
+	static double timeLastShuffled;
+	int numberOfChunksWaitingForVAUpdate = m_dirtyChunks.size();
+	double timeInSeconds = GetCurrentTimeSeconds();
+	DebuggerPrintf("[%i] World [%i]: Number of chunks awaiting VA Updates: %i\n", g_frameNumber, m_worldID, numberOfChunksWaitingForVAUpdate);
+	if (numberOfChunksWaitingForVAUpdate > 40 && (timeInSeconds - timeLastShuffled) > 0.5)
 	{
-		Chunk* currentChunk = currentChunkPair.second;
-		currentChunk->UpdateVAIfDirty();
+		timeLastShuffled = timeInSeconds;
+		DebuggerPrintf("[%i] World [%i]: Recalculating chunk queue...\n", g_frameNumber, m_worldID);
+		Chunk** chunkPointerHolder = new Chunk*[numberOfChunksWaitingForVAUpdate];
+		int currentIndex = 0;
+		for (PrioritizedChunk chunkPair : m_dirtyChunks)
+		{
+			chunkPointerHolder[currentIndex++] = chunkPair.chunk;
+		}
+		m_dirtyChunks.clear();
+		for (int i = 0; i < numberOfChunksWaitingForVAUpdate; i++)
+		{
+			m_dirtyChunks.emplace(chunkPointerHolder[i], chunkPointerHolder[i]->m_world->DistanceSquaredFromPlayerToChunk(chunkPointerHolder[i]->m_chunkPosition));
+		}
+		delete [] chunkPointerHolder;
+	}
+	if (!m_dirtyChunks.empty())
+	{
+		Chunk* chunkToUpdate = m_dirtyChunks.begin()->chunk;
+		chunkToUpdate->GenerateVertexArray();
+		m_dirtyChunks.erase(m_dirtyChunks.begin());
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void World::RequestNeededChunks()
 {
-	ChunkCoords chunkToGenerate(0, 0);
+	PrioritizedChunkCoords chunkToGenerate(this, ChunkCoords(0,0), 9999999.0f);
 	bool shouldGenerateChunk = GetHighestPriorityMissingChunk(chunkToGenerate);
 	if (shouldGenerateChunk)
 	{
@@ -99,6 +131,7 @@ void World::RequestNeededChunks()
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void World::FlushUnnecessaryChunks()
 {
 	ChunkCoords chunkToFlush(0, 0);
@@ -114,41 +147,47 @@ void World::FlushUnnecessaryChunks()
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void World::FindAllChunksOnDisk()
 {
-	std::vector<std::string>* fileNames = GetFileNamesInFolder("Data\\SaveData\\Save0\\*");
+	std::vector<std::string>* fileNames = GetFileNamesInFolder(Stringf("Data\\SaveData\\Save0\\World%i\\*", m_worldID));
 	std::regex chunkFile ("-?[0-9]+,-?[0-9]+.*\\.chunk");
 	for (std::string fileName : *fileNames)
 	{
 		if (regex_match(fileName, chunkFile))
 		{
 			ChunkCoords fileCoords;
-			char *fileCStr = new char[fileName.length() + 1];
-			strcpy(fileCStr, fileName.c_str());
-			char* firstNumber = strtok(fileCStr, ",.");
+			const int fileNameLength = fileName.length() + 1;
+			char *fileCStr = new char[fileNameLength];
+			strcpy_s(fileCStr, fileNameLength, fileName.c_str());
+			char* context = nullptr;
+			char* firstNumber = strtok_s(fileCStr, ",.", &context);
 			fileCoords.x = atoi(firstNumber);
-			char* secondNumber = strtok(NULL, ",.");
+			char* secondNumber = strtok_s(NULL, ",.", &context);
 			fileCoords.y = atoi(secondNumber);
-			g_chunksOnDisk.insert(fileCoords);
+			g_chunksOnDiskSet.emplace(this, fileCoords);
 			delete [] fileCStr;
 		}
 	}
 	delete fileNames;
 }
 
+//-----------------------------------------------------------------------------------
 bool World::IsChunkOnDisk(ChunkCoords & chunkToGenerate)
 {
-	return (g_chunksOnDisk.find(chunkToGenerate) != g_chunksOnDisk.end());
+	WorldChunkCoordsPair chunkCoordsInWorld (this, chunkToGenerate);
+	return (g_chunksOnDiskSet.find(chunkCoordsInWorld) != g_chunksOnDiskSet.end());
 }
 
-void World::RequestChunk(ChunkCoords &chunkToGenerate)
+//-----------------------------------------------------------------------------------
+void World::RequestChunk(PrioritizedChunkCoords &prioritizedChunkCoordsToGenerate)
 {
-	bool isOnDisk = IsChunkOnDisk(chunkToGenerate);
+	bool isOnDisk = IsChunkOnDisk(prioritizedChunkCoordsToGenerate.chunkCoords);
 	if (isOnDisk)
 	{
 		EnterCriticalSection(&g_diskIOCriticalSection);
 		{
-			g_requestedChunkLoadList.insert(chunkToGenerate);
+			g_requestedChunkLoadSet.insert(prioritizedChunkCoordsToGenerate);
 		}
 		LeaveCriticalSection(&g_diskIOCriticalSection);
 	}
@@ -156,28 +195,30 @@ void World::RequestChunk(ChunkCoords &chunkToGenerate)
 	{
 		EnterCriticalSection(&g_chunkListsCriticalSection);
 		{
-			g_requestedChunkGenerationList.insert(chunkToGenerate);
+			g_requestedChunkGenerationSet.insert(prioritizedChunkCoordsToGenerate);
 		}
 		LeaveCriticalSection(&g_chunkListsCriticalSection);
 	}
-	
+	m_pendingRequests[prioritizedChunkCoordsToGenerate.chunkCoords] = prioritizedChunkCoordsToGenerate;
 }
 
-Chunk* World::LoadChunk(ChunkCoords &chunkToGenerate)
+//-----------------------------------------------------------------------------------
+Chunk* World::LoadChunk(unsigned int worldID, ChunkCoords &chunkToGenerate)
 {
 	StartTiming(g_loadingProfiling);
 	std::vector<uchar> chunkData;
 	Chunk* loadedChunk = nullptr;
 
-	bool fileLoaded = LoadBufferFromBinaryFile(chunkData, Stringf("Data\\SaveData\\Save0\\%i,%i.chunk", chunkToGenerate.x, chunkToGenerate.y));
+	bool fileLoaded = LoadBufferFromBinaryFile(chunkData, Stringf("Data\\SaveData\\Save0\\World%i\\%i,%i.chunk", worldID, chunkToGenerate.x, chunkToGenerate.y));
 	if (fileLoaded)
 	{
-		loadedChunk = new Chunk(chunkToGenerate, chunkData, TheGame::instance->m_world);
+		loadedChunk = new Chunk(chunkToGenerate, chunkData, TheGame::instance->m_worlds[worldID]);
 	}
 	EndTiming(g_loadingProfiling);
 	return loadedChunk;
 }
 
+//-----------------------------------------------------------------------------------
 void World::Render() const
 {
 	ChunkCoords playerPos = GetPlayerChunkCoords();
@@ -189,7 +230,7 @@ void World::Render() const
 		if (chunkIter != m_activeChunks.end())
 		{
 			currentChunk = chunkIter->second;
-			if (currentChunk->IsInFrustum(TheGame::instance->m_playerCamera->GetForwardXYZ(), TheGame::instance->m_player->m_position))
+			if (currentChunk->IsInFrustum(TheGame::instance->m_playerCamera->GetForwardXYZ(), TheGame::instance->m_playerCamera->m_position))
 			{
 				currentChunk->Render();
 			}
@@ -197,6 +238,7 @@ void World::Render() const
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void World::PlaceBlock()
 {
 	Player* player = TheGame::instance->m_player;
@@ -207,7 +249,7 @@ void World::PlaceBlock()
 	block->m_type = player->m_heldBlock;
 	BlockDefinition* definition = BlockDefinition::GetDefinition(player->m_heldBlock);
 	AudioSystem::instance->PlaySound(definition->m_placeSound);
-	currentChunk->m_isDirty = true;
+	currentChunk->SetHighPriorityChunkDirtyAndAddToDirtyList();
 	BlockInfo::SetDirtyFlagAndAddToDirtyList(info);
 	if (block->IsEdgeBlock())
 	{
@@ -217,20 +259,20 @@ void World::PlaceBlock()
 		BlockInfo south = info.GetSouth();
 		if (info.IsOnEast() && east.m_chunk)
 		{
-			east.m_chunk->m_isDirty = true;
+			east.m_chunk->DirtyAndAddToDirtyList();
 		}
 		else if (info.IsOnWest() && west.m_chunk)
 		{
-			west.m_chunk->m_isDirty = true;
+			west.m_chunk->DirtyAndAddToDirtyList();
 		}
 
 		if (info.IsOnNorth() && north.m_chunk)
 		{
-			north.m_chunk->m_isDirty = true;
+			north.m_chunk->DirtyAndAddToDirtyList();
 		}
 		else if (info.IsOnSouth() && south.m_chunk)
 		{
-			south.m_chunk->m_isDirty = true;
+			south.m_chunk->DirtyAndAddToDirtyList();
 		}
 	}
 	if (info.GetBlock()->IsSky())
@@ -255,6 +297,7 @@ void World::PlaceBlock()
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void World::DestroyBlock()
 {
 	Player* player = TheGame::instance->m_player;
@@ -266,19 +309,10 @@ void World::DestroyBlock()
 	Block* block = info.GetBlock();
 	BlockDefinition* definition = info.GetBlock()->GetDefinition();
 	AudioSystem::instance->PlaySound(definition->m_brokenSound);
-	if (info.GetAbove().GetBlock()->m_type == BlockType::WATER
-		|| info.GetWest().GetBlock()->m_type == BlockType::WATER
-		|| info.GetEast().GetBlock()->m_type == BlockType::WATER
-		|| info.GetNorth().GetBlock()->m_type == BlockType::WATER
-		|| info.GetSouth().GetBlock()->m_type == BlockType::WATER)
-	{
-		block->m_type = BlockType::WATER;
-	}
-	else
-	{
-		block->m_type = BlockType::AIR;
-	}
-	info.m_chunk->m_isDirty = true;
+	block->m_type = BlockType::AIR;
+	//This chunk is NOT high priority because we want the edge chunk to get updated first.
+	//If we don't, we'll see a gap in the world before the other chunk's VA gets updated. This chunk is next in line regardless.
+	info.m_chunk->DirtyAndAddToDirtyList();
 	BlockInfo::SetDirtyFlagAndAddToDirtyList(info);
 	//Update VA's if we were on a boundary
 	if (block->IsEdgeBlock())
@@ -289,20 +323,20 @@ void World::DestroyBlock()
 		BlockInfo south = info.GetSouth();
 		if (info.IsOnEast() && east.m_chunk)
 		{
-			east.m_chunk->m_isDirty = true;
+			east.m_chunk->SetHighPriorityChunkDirtyAndAddToDirtyList();
 		}
 		else if (info.IsOnWest() && west.m_chunk)
 		{
-			west.m_chunk->m_isDirty = true;
+			west.m_chunk->SetHighPriorityChunkDirtyAndAddToDirtyList();
 		}
 
 		if (info.IsOnNorth() && north.m_chunk)
 		{
-			north.m_chunk->m_isDirty = true;
+			north.m_chunk->SetHighPriorityChunkDirtyAndAddToDirtyList();
 		}
 		else if (info.IsOnSouth() && south.m_chunk)
 		{
-			south.m_chunk->m_isDirty = true;
+			south.m_chunk->SetHighPriorityChunkDirtyAndAddToDirtyList();
 		}
 	}
 	if (info.GetAbove().GetBlock()->IsSky())
@@ -330,7 +364,8 @@ void World::DestroyBlock()
 
 }
 
-bool World::GetHighestPriorityMissingChunk(ChunkCoords& out_chunkCoords)
+//-----------------------------------------------------------------------------------
+bool World::GetHighestPriorityMissingChunk(PrioritizedChunkCoords& out_chunkCoords)
 {
 	const float radiusBlocks = ACTIVE_RADIUS * Chunk::BLOCKS_WIDE_X;
 	const float radiusSquared = radiusBlocks * radiusBlocks;
@@ -344,11 +379,9 @@ bool World::GetHighestPriorityMissingChunk(ChunkCoords& out_chunkCoords)
 		for (int y = playerChunk.y - ACTIVE_RADIUS; y < playerChunk.y + ACTIVE_RADIUS; y++)
 		{
 			ChunkCoords candidateChunkCoords(x, y);
-			WorldPosition worldPosCandidateChunk = GetWorldPositionFromChunkCoords(candidateChunkCoords);
-			WorldPosition adjustedPlayerPosition = TheGame::instance->m_playerCamera->m_position;
-			adjustedPlayerPosition.z = 0.0f;
-			float distToChunk = MathUtils::CalcDistSquaredBetweenPoints(adjustedPlayerPosition, worldPosCandidateChunk);
-			if (distToChunk < radiusSquared && m_activeChunks.find(candidateChunkCoords) == m_activeChunks.end())
+			float distToChunk = DistanceSquaredFromPlayerToChunk(candidateChunkCoords);
+
+			if (distToChunk < radiusSquared && m_activeChunks.find(candidateChunkCoords) == m_activeChunks.end() && m_pendingRequests.find(candidateChunkCoords) == m_pendingRequests.end())
 			{
 				if (distToChunk < distToMostUrgent)
 				{
@@ -359,10 +392,21 @@ bool World::GetHighestPriorityMissingChunk(ChunkCoords& out_chunkCoords)
 			}
 		}
 	}
-	out_chunkCoords = mostUrgent;
+	out_chunkCoords.chunkCoords = mostUrgent;
+	out_chunkCoords.prioritizedDistanceValue = distToMostUrgent;
 	return shouldGenerate;
 }
 
+//-----------------------------------------------------------------------------------
+float World::DistanceSquaredFromPlayerToChunk(ChunkCoords candidateChunkCoords)
+{
+	WorldPosition worldPosCandidateChunk = GetWorldPositionFromChunkCoords(candidateChunkCoords);
+	WorldPosition adjustedPlayerPosition = TheGame::instance->m_playerCamera->m_position;
+	adjustedPlayerPosition.z = 0.0f;
+	return MathUtils::CalcDistSquaredBetweenPoints(adjustedPlayerPosition, worldPosCandidateChunk);
+}
+
+//-----------------------------------------------------------------------------------
 bool World::GetFurthestUnneededChunk(ChunkCoords& out_chunkCoords)
 {
 	const float radiusBlocks = ACTIVE_RADIUS * Chunk::BLOCKS_WIDE_X;
@@ -400,16 +444,19 @@ bool World::GetFurthestUnneededChunk(ChunkCoords& out_chunkCoords)
 	return shouldRemove;
 }
 
+//-----------------------------------------------------------------------------------
 void World::SaveChunk(Chunk* chunkToUnload)
 {
+	return;
 	StartTiming(g_savingProfiling);
 	std::vector<uchar> chunkData;
 	chunkToUnload->GenerateSaveData(chunkData);
-	SaveBufferToBinaryFile(chunkData, Stringf("Data\\SaveData\\Save0\\%i,%i.chunk", chunkToUnload->m_chunkPosition.x, chunkToUnload->m_chunkPosition.y));
-	g_chunksOnDisk.insert(chunkToUnload->m_chunkPosition);
+	SaveBufferToBinaryFile(chunkData, Stringf("Data\\SaveData\\Save0\\World%i\\%i,%i.chunk", chunkToUnload->m_world->m_worldID, chunkToUnload->m_chunkPosition.x, chunkToUnload->m_chunkPosition.y));
+	g_chunksOnDiskSet.emplace(chunkToUnload->m_world, chunkToUnload->m_chunkPosition);
 	EndTiming(g_savingProfiling);
 }
 
+//-----------------------------------------------------------------------------------
 void World::HookUpChunkPointers(Chunk* chunkToHookUp)
 {
 	ChunkCoords position = chunkToHookUp->m_chunkPosition;
@@ -420,41 +467,42 @@ void World::HookUpChunkPointers(Chunk* chunkToHookUp)
 	auto eastChunk = m_activeChunks.find(eastChunkPos);
 	if (eastChunk != m_activeChunks.end())
 	{
-		Chunk* neighborChunk = eastChunk->second;
-		chunkToHookUp->m_eastChunk = neighborChunk;
-		neighborChunk->m_westChunk = chunkToHookUp;
-		neighborChunk->FlagEdgesAsDirtyLighting();
-		neighborChunk->m_isDirty = true;
+		Chunk* existingNeighborChunk = eastChunk->second;
+		chunkToHookUp->m_eastChunk = existingNeighborChunk;
+		existingNeighborChunk->m_westChunk = chunkToHookUp;
+		existingNeighborChunk->FlagEdgesAsDirtyLighting(WEST);
+		existingNeighborChunk->DirtyAndAddToDirtyList();
 	}
 	auto westChunk = m_activeChunks.find(westChunkPos);
 	if (westChunk != m_activeChunks.end())
 	{
 		chunkToHookUp->m_westChunk = westChunk->second;
-		Chunk* chunk = westChunk->second;
-		chunk->m_eastChunk = chunkToHookUp;
-		chunk->FlagEdgesAsDirtyLighting();
-		chunk->m_isDirty = true;
+		Chunk* existingNeighborChunk = westChunk->second;
+		existingNeighborChunk->m_eastChunk = chunkToHookUp;
+		existingNeighborChunk->FlagEdgesAsDirtyLighting(EAST);
+		existingNeighborChunk->DirtyAndAddToDirtyList();
 	}
 	auto northChunk = m_activeChunks.find(northChunkPos);
 	if (northChunk != m_activeChunks.end())
 	{
 		chunkToHookUp->m_northChunk = northChunk->second;
-		Chunk* chunk = northChunk->second;
-		chunk->m_southChunk = chunkToHookUp;
-		chunk->FlagEdgesAsDirtyLighting();
-		chunk->m_isDirty = true;
+		Chunk* existingNeighborChunk = northChunk->second;
+		existingNeighborChunk->m_southChunk = chunkToHookUp;
+		existingNeighborChunk->FlagEdgesAsDirtyLighting(SOUTH);
+		existingNeighborChunk->DirtyAndAddToDirtyList();
 	}
 	auto southChunk = m_activeChunks.find(southChunkPos);
 	if (southChunk != m_activeChunks.end())
 	{
 		chunkToHookUp->m_southChunk = southChunk->second;
-		Chunk* chunk = southChunk->second;
-		chunk->m_northChunk = chunkToHookUp;
-		chunk->FlagEdgesAsDirtyLighting();
-		chunk->m_isDirty = true;
+		Chunk* existingNeighborChunk = southChunk->second;
+		existingNeighborChunk->m_northChunk = chunkToHookUp;
+		existingNeighborChunk->FlagEdgesAsDirtyLighting(NORTH);
+		existingNeighborChunk->DirtyAndAddToDirtyList();
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void World::UnhookChunkPointers(Chunk* chunkToUnhook)
 {
 	ChunkCoords position = chunkToUnhook->m_chunkPosition;
@@ -465,41 +513,44 @@ void World::UnhookChunkPointers(Chunk* chunkToUnhook)
 	auto eastChunk = m_activeChunks.find(eastChunkPos);
 	if (eastChunk != m_activeChunks.end())
 	{
-		Chunk* chunk = eastChunk->second;
-		chunk->m_westChunk = nullptr;
+		Chunk* existingNeighborChunk = eastChunk->second;
+		existingNeighborChunk->m_westChunk = nullptr;
 	}
 	auto westChunk = m_activeChunks.find(westChunkPos);
 	if (westChunk != m_activeChunks.end())
 	{
-		Chunk* chunk = westChunk->second;
-		chunk->m_eastChunk = nullptr;
+		Chunk* existingNeighborChunk = westChunk->second;
+		existingNeighborChunk->m_eastChunk = nullptr;
 	}
 	auto northChunk = m_activeChunks.find(northChunkPos);
 	if (northChunk != m_activeChunks.end())
 	{
-		Chunk* chunk = northChunk->second;
-		chunk->m_southChunk = nullptr;
+		Chunk* existingNeighborChunk = northChunk->second;
+		existingNeighborChunk->m_southChunk = nullptr;
 	}
 	auto southChunk = m_activeChunks.find(southChunkPos);
 	if (southChunk != m_activeChunks.end())
 	{
-		Chunk* chunk = southChunk->second;
-		chunk->m_northChunk = nullptr;
+		Chunk* existingNeighborChunk = southChunk->second;
+		existingNeighborChunk->m_northChunk = nullptr;
 	}
 }
 
+//-----------------------------------------------------------------------------------
 ChunkCoords World::GetPlayerChunkCoords() const
 {
 	WorldPosition playerPosition = TheGame::instance->m_player->m_position;
 	return ChunkCoords(static_cast<int>(floor(playerPosition.x / Chunk::BLOCKS_WIDE_X)), static_cast<int>(floor(playerPosition.y / Chunk::BLOCKS_WIDE_X)));
 }
 
+//-----------------------------------------------------------------------------------
 ChunkCoords World::GetPlayerChunkCoords(Player* player) const
 {
 	WorldPosition playerPosition = player->m_position;
 	return ChunkCoords(static_cast<int>(floor(playerPosition.x / Chunk::BLOCKS_WIDE_X)), static_cast<int>(floor(playerPosition.y / Chunk::BLOCKS_WIDE_X)));
 }
 
+//-----------------------------------------------------------------------------------
 WorldPosition World::GetWorldPositionFromChunkCoords(const ChunkCoords& chunkCoords) const
 {
 	const float halfX = Chunk::BLOCKS_WIDE_X / 2.0f;
@@ -509,11 +560,13 @@ WorldPosition World::GetWorldPositionFromChunkCoords(const ChunkCoords& chunkCoo
 	return WorldPosition(worldX, worldY, 0.0f);
 }
 
+//-----------------------------------------------------------------------------------
 Block* World::GetBlockFromWorldPosition(const WorldPosition& worldPos) const
 {
 	return GetBlockFromWorldCoords(WorldCoords(static_cast<int>(floor(worldPos.x)), static_cast<int>(floor(worldPos.y)), static_cast<int>(floor(worldPos.z))));
 }
 
+//-----------------------------------------------------------------------------------
 Block* World::GetBlockFromWorldCoords(const WorldCoords& worldCoords) const
 {
 	ChunkCoords chunkPosition = GetChunkCoordsFromWorldCoords(worldCoords);
@@ -527,10 +580,12 @@ Block* World::GetBlockFromWorldCoords(const WorldCoords& worldCoords) const
 	return chunk->GetBlock(index);
 }
 
+//-----------------------------------------------------------------------------------
 RaycastResult3D World::Raycast(const Vector3& start, const Vector3& end) const
 {
 	RaycastResult3D result;
 	result.didImpact = false;
+	result.wasInsideBlockAlready = false;
 	result.impactFraction = 1.0f;
 	result.impactPosition = Vector3::ZERO;
 	result.impactSurfaceNormal = Vector3Int(0, 0, 0);
@@ -545,10 +600,17 @@ RaycastResult3D World::Raycast(const Vector3& start, const Vector3& end) const
 	if (BlockDefinition::GetDefinition(blockType)->IsSolid())
 	{
 		result.didImpact = true;
+		result.wasInsideBlockAlready = true;
 		result.impactFraction = 0.0f;
 		result.impactPosition = start;
 		result.impactTileCoords = rayPosition;
 		result.impactSurfaceNormal = Vector3Int(0, 0, 0);
+		if (start.x == (int)start.x)
+			result.impactSurfaceNormal.x = -2;
+		if (start.y == (int)start.y)
+			result.impactSurfaceNormal.y = -2;
+		if (start.z == (int)start.z)
+			result.impactSurfaceNormal.z = -2;
 		return result;
 	}
 	Vector3 rayDisplacement = end - start;
@@ -588,8 +650,8 @@ RaycastResult3D World::Raycast(const Vector3& start, const Vector3& end) const
 				result.impactTileCoords = rayPosition;
 				return result;
 			}
-			uchar blockType = block->m_type;
-			if (BlockDefinition::GetDefinition(blockType)->IsSolid())
+			uchar currentBlockType = block->m_type;
+			if (BlockDefinition::GetDefinition(currentBlockType)->IsSolid())
 			{
 				result.didImpact = true;
 				result.impactPosition = start + (rayDisplacement * tOfNextXCrossing);
@@ -616,8 +678,8 @@ RaycastResult3D World::Raycast(const Vector3& start, const Vector3& end) const
 				result.impactTileCoords = rayPosition;
 				return result;
 			}
-			uchar blockType = block->m_type;
-			if (BlockDefinition::GetDefinition(blockType)->IsSolid())
+			uchar currentBlockType = block->m_type;
+			if (BlockDefinition::GetDefinition(currentBlockType)->IsSolid())
 			{
 				result.didImpact = true;
 				result.impactPosition = start + (rayDisplacement * tOfNextYCrossing);
@@ -644,8 +706,8 @@ RaycastResult3D World::Raycast(const Vector3& start, const Vector3& end) const
 				result.impactTileCoords = rayPosition;
 				return result;
 			}
-			uchar blockType = block->m_type;
-			if (BlockDefinition::GetDefinition(blockType)->IsSolid())
+			uchar currentBlockType = block->m_type;
+			if (BlockDefinition::GetDefinition(currentBlockType)->IsSolid())
 			{
 				result.didImpact = true;
 				result.impactPosition = start + (rayDisplacement * tOfNextZCrossing);
@@ -659,11 +721,13 @@ RaycastResult3D World::Raycast(const Vector3& start, const Vector3& end) const
 	}
 }
 
+//-----------------------------------------------------------------------------------
 int World::GetNumActiveChunks()
 {
 	return m_activeChunks.size();
 }
 
+//-----------------------------------------------------------------------------------
 void World::ParseChunksInSquare(const AABB2 bounds)
 {
 	ChunkCoords mins = ChunkCoords(static_cast<int>(bounds.mins.x), static_cast<int>(bounds.mins.y));
@@ -702,6 +766,7 @@ void World::ParseChunksInSquare(const AABB2 bounds)
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void World::CreateRenderingOffsetList(Player* player)
 {
 	ChunkCoords playerChunk = GetPlayerChunkCoords(player);
@@ -709,24 +774,58 @@ void World::CreateRenderingOffsetList(Player* player)
 	ParseChunksInSquare(squareRadius);
 }
 
+//-----------------------------------------------------------------------------------
 void World::AddToSaveQueue(Chunk* flushedChunk)
 {
+	//Before we add it to the save queue, we need to pull the chunk out of any processing stages it's in.
+	for (auto iter = m_dirtyChunks.begin(); iter != m_dirtyChunks.end();)
+	{
+		if (iter->chunk == flushedChunk)
+		{
+			iter = m_dirtyChunks.erase(iter);
+		}
+		else
+		{
+			iter++;
+		}
+	}
+	//Remove any blocks that were marked as dirty lighting by the chunk's creation.
+	for (auto iter = m_dirtyBlocks.begin(); iter != m_dirtyBlocks.end();)
+	{
+		if (iter->m_chunk == flushedChunk)
+		{
+			iter = m_dirtyBlocks.erase(iter);
+		}
+		else
+		{
+			iter++;
+		}
+	}
 	EnterCriticalSection(&g_diskIOCriticalSection);
 	{
-		g_requestedChunkSaveList.push_back(flushedChunk);
+		g_requestedChunkSaveDeque.push_back(flushedChunk);
 	}
 	LeaveCriticalSection(&g_diskIOCriticalSection);
+	m_pendingRequests.erase(flushedChunk->m_chunkPosition);
 }
 
+//-----------------------------------------------------------------------------------
 void World::PickUpCompletedChunks()
 {
 	Chunk* newChunk = nullptr;
 	EnterCriticalSection(&g_chunkListsCriticalSection);
 	{
-		if (g_readyToActivateChunks.size() > 0)
+		if (g_readyToActivateChunksDeque.size() > 0)
 		{
-			newChunk = g_readyToActivateChunks.front();
-			g_readyToActivateChunks.pop_front();
+			newChunk = g_readyToActivateChunksDeque.front();
+			if (newChunk->m_world == this)
+			{
+				g_readyToActivateChunksDeque.pop_front();
+			}
+			else
+			{
+				newChunk = nullptr;
+			}
 		}
 	}
 	LeaveCriticalSection(&g_chunkListsCriticalSection);
@@ -734,47 +833,47 @@ void World::PickUpCompletedChunks()
 	{
 		ChunkCoords chunkPosition = newChunk->m_chunkPosition;
 		m_activeChunks[chunkPosition] = newChunk;
-		newChunk->SetEdgeBits();
+		newChunk->DirtyAndAddToDirtyList();
 		newChunk->CalculateSkyLighting();
 		HookUpChunkPointers(m_activeChunks[chunkPosition]);
 		m_chunkAddRemoveBalance++;
+		DebuggerPrintf("[%i] World [%i]: Claiming Chunk %i,%i\n", g_frameNumber, m_worldID, chunkPosition.x, chunkPosition.y);
 	}
 }
 
+//--------------------------------------------------------------------------------
 void World::UpdateLighting()
 {
+	DebuggerPrintf("[%i] World [%i]: Updating %i blocks for lighting intially.\n", g_frameNumber, m_worldID, m_dirtyBlocks.size());
+	unsigned int numberOfDirtyBlocks = 0;
 	while (!m_dirtyBlocks.empty())
 	{
 		BlockInfo bi = m_dirtyBlocks.front();
 		m_dirtyBlocks.pop_front();
 		bi.GetBlock()->SetDirty(false);
 		UpdateLightingForBlock(bi);
+		numberOfDirtyBlocks++;
 	}
+	DebuggerPrintf("[%i] World [%i]: Actually updated %i blocks during lighting.\n", g_frameNumber, m_worldID, numberOfDirtyBlocks);
 }
 
+//--------------------------------------------------------------------------------
 void World::UpdateLightingForBlock(const BlockInfo& bi)
 {
-	RGBA ideal = RGBA();
-	ideal.red = GetIdealRedLightForBlock(bi);
-	ideal.green = GetIdealGreenLightForBlock(bi);
-	ideal.blue = GetIdealBlueLightForBlock(bi);
-	RGBA current = RGBA();
-	current.red = bi.GetBlock()->GetRedLightValue();
-	current.green = bi.GetBlock()->GetGreenLightValue();
-	current.blue = bi.GetBlock()->GetBlueLightValue();
+	RGBA ideal = GetIdealLightForBlock(bi);
+	RGBA current = bi.GetBlock()->GetRGBALightValue();
 	if (ideal == current)
 		return;
 	Block* block = bi.GetBlock();
 	if (block)
 	{
-		block->SetRedLightValue(ideal.red);
-		block->SetGreenLightValue(ideal.green);
-		block->SetBlueLightValue(ideal.blue);
+		block->SetLightValue(ideal);
 	}
 	SetBlockNeighborsDirty(bi);
-	bi.m_chunk->m_isDirty = true;
+	bi.m_chunk->DirtyAndAddToDirtyList();
 }
 
+//-----------------------------------------------------------------------------------
 void World::MarkAsLightingDirty(BlockInfo& bi)
 {
 	Block* block = bi.GetBlock();
@@ -786,6 +885,7 @@ void World::MarkAsLightingDirty(BlockInfo& bi)
 
 }
 
+//-----------------------------------------------------------------------------------
 void World::SetBlockNeighborsDirty(const BlockInfo& info)
 {
 	if (info.m_index == BlockInfo::INVALID_INDEX)
@@ -831,162 +931,110 @@ void World::SetBlockNeighborsDirty(const BlockInfo& info)
 		BlockInfo south = info.GetSouth();
 		if (info.IsOnEast() && east.m_chunk)
 		{
-			east.m_chunk->m_isDirty = true;
+			east.m_chunk->DirtyAndAddToDirtyList();
 		}
 		else if (info.IsOnWest() && west.m_chunk)
 		{
-			west.m_chunk->m_isDirty = true;
+			west.m_chunk->DirtyAndAddToDirtyList();
 		}
 
 		if (info.IsOnNorth() && north.m_chunk)
 		{
-			north.m_chunk->m_isDirty = true;
+			north.m_chunk->DirtyAndAddToDirtyList();
 		}
 		else if (info.IsOnSouth() && south.m_chunk)
 		{
-			south.m_chunk->m_isDirty = true;
+			south.m_chunk->DirtyAndAddToDirtyList();
 		}
 	}
 }
 
-uchar World::GetIdealRedLightForBlock(const BlockInfo& bi)
+//-----------------------------------------------------------------------------------
+RGBA World::GetIdealLightForBlock(const BlockInfo& bi)
 {
 	BlockDefinition* definition = BlockDefinition::GetDefinition(bi.GetBlock()->m_type);
+	RGBA myLight = RGBA(definition->m_illumination);
 	if (definition->m_isOpaque)
 	{
-		return RGBA::GetRed(definition->m_illumination);
+		return myLight;
 	}
-	uchar myLight = RGBA::GetRed(definition->m_illumination);
-	uchar brightestNeighbor = GetBrightestRedNeighbor(bi);
-	uchar highestNeighborMinusOneStep = brightestNeighbor - 0x0F;
-	highestNeighborMinusOneStep = highestNeighborMinusOneStep > brightestNeighbor ? 0x00 : highestNeighborMinusOneStep;
-	uchar highestFilteredForOpacity = highestNeighborMinusOneStep - definition->m_opacity.red;
-	highestFilteredForOpacity = highestFilteredForOpacity > highestNeighborMinusOneStep ? 0x00 : highestFilteredForOpacity;
-	uchar skylight = bi.GetBlock()->IsSky() ? RGBA::GetRed(SKY_LIGHT) : 0x00;
-	uchar ideal = myLight > skylight ? myLight : skylight;
-	return highestFilteredForOpacity > ideal ? highestFilteredForOpacity : ideal;
+	RGBA brightestNeighbor = GetBrightestNeighbor(bi);
+
+	RGBA highestNeighborMinusOneStep = brightestNeighbor - 0x0F;
+	uchar highestNeighborMinusOneStepRed = highestNeighborMinusOneStep.red > brightestNeighbor.red ? 0x00 : highestNeighborMinusOneStep.red;
+	uchar highestNeighborMinusOneStepGreen = highestNeighborMinusOneStep.green > brightestNeighbor.green ? 0x00 : highestNeighborMinusOneStep.green;
+	uchar highestNeighborMinusOneStepBlue = highestNeighborMinusOneStep.blue > brightestNeighbor.blue ? 0x00 : highestNeighborMinusOneStep.blue;
+	uchar highestFilteredForOpacityRed = highestNeighborMinusOneStepRed - definition->m_opacity.red;
+	uchar highestFilteredForOpacityGreen = highestNeighborMinusOneStepGreen - definition->m_opacity.green;
+	uchar highestFilteredForOpacityBlue = highestNeighborMinusOneStepBlue - definition->m_opacity.blue;
+	highestFilteredForOpacityRed = highestFilteredForOpacityRed > highestNeighborMinusOneStepRed ? 0x00 : highestFilteredForOpacityRed;
+	highestFilteredForOpacityGreen = highestFilteredForOpacityGreen > highestNeighborMinusOneStepGreen ? 0x00 : highestFilteredForOpacityGreen;
+	highestFilteredForOpacityBlue = highestFilteredForOpacityBlue > highestNeighborMinusOneStepBlue ? 0x00 : highestFilteredForOpacityBlue;
+
+	RGBA skylight = bi.GetBlock()->IsSky() ? m_skyLight : RGBA::BLACK;
+	uchar idealRed = myLight.red > skylight.red ? myLight.red : skylight.red;
+	uchar idealGreen = myLight.green > skylight.green ? myLight.green : skylight.green;
+	uchar idealBlue = myLight.blue > skylight.blue ? myLight.blue : skylight.blue;
+
+	idealRed = highestFilteredForOpacityRed > idealRed ? highestFilteredForOpacityRed : idealRed;
+	idealGreen = highestFilteredForOpacityGreen > idealGreen ? highestFilteredForOpacityGreen : idealGreen;
+	idealBlue = highestFilteredForOpacityBlue > idealBlue ? highestFilteredForOpacityBlue : idealBlue;
+
+	return RGBA::CreateFromUChars(idealRed, idealGreen, idealBlue, 0xFF);
 }
 
-uchar World::GetIdealGreenLightForBlock(const BlockInfo& bi)
+//-----------------------------------------------------------------------------------
+RGBA World::GetBrightestNeighbor(const BlockInfo& info)
 {
-	BlockDefinition* definition = BlockDefinition::GetDefinition(bi.GetBlock()->m_type);
-	if (definition->m_isOpaque)
-	{
-		return RGBA::GetGreen(definition->m_illumination);
-	}
-	uchar myLight = RGBA::GetGreen(definition->m_illumination);
-	uchar brightestNeighbor = GetBrightestGreenNeighbor(bi);
-	uchar highestNeighborMinusOneStep = brightestNeighbor - 0x0F;
-	highestNeighborMinusOneStep = highestNeighborMinusOneStep > brightestNeighbor ? 0x00 : highestNeighborMinusOneStep;
-	uchar highestFilteredForOpacity = highestNeighborMinusOneStep - definition->m_opacity.green;
-	highestFilteredForOpacity = highestFilteredForOpacity > highestNeighborMinusOneStep ? 0x00 : highestFilteredForOpacity;
-	uchar skylight = bi.GetBlock()->IsSky() ? RGBA::GetGreen(SKY_LIGHT) : 0x00;
-	uchar ideal = myLight > skylight ? myLight : skylight;
-	return highestFilteredForOpacity > ideal ? highestFilteredForOpacity : ideal;
-}
-
-uchar World::GetIdealBlueLightForBlock(const BlockInfo& bi)
-{
-	BlockDefinition* definition = BlockDefinition::GetDefinition(bi.GetBlock()->m_type);
-	if (definition->m_isOpaque)
-	{
-		return RGBA::GetBlue(definition->m_illumination);
-	}
-	uchar myLight = RGBA::GetBlue(definition->m_illumination);
-	uchar brightestNeighbor = GetBrightestBlueNeighbor(bi);
-	uchar highestNeighborMinusOneStep = brightestNeighbor - 0x0F;
-	highestNeighborMinusOneStep = highestNeighborMinusOneStep > brightestNeighbor ? 0x00 : highestNeighborMinusOneStep;
-	uchar highestFilteredForOpacity = highestNeighborMinusOneStep - definition->m_opacity.blue;
-	highestFilteredForOpacity = highestFilteredForOpacity > highestNeighborMinusOneStep ? 0x00 : highestFilteredForOpacity;
-	uchar skylight = bi.GetBlock()->IsSky() ? RGBA::GetBlue(SKY_LIGHT) : 0x00;
-	uchar ideal = myLight > skylight ? myLight : skylight;
-	return highestFilteredForOpacity > ideal ? highestFilteredForOpacity : ideal;
-}
-
-uchar World::GetBrightestRedNeighbor(const BlockInfo& info)
-{
-	uchar lightValue = 0x00;
+	RGBA brightestLightValue = RGBA::BLACK;
 	if (info.m_index == BlockInfo::INVALID_INDEX)
 	{
-		return lightValue;
+		return brightestLightValue;
 	}
 	for (Direction neighborDirection : BlockInfo::directions)
 	{
 		BlockInfo neighborBlock = info.GetNeighbor(neighborDirection);
 		if (neighborBlock.m_index != BlockInfo::INVALID_INDEX)
 		{
-			uchar current = neighborBlock.GetBlock()->GetRedLightValue();
-			lightValue = current > lightValue ? current : lightValue;
+			RGBA neighborLight = neighborBlock.GetBlock()->GetRGBALightValue();
+			uchar brightestRedValue = neighborLight.red > brightestLightValue.red ? neighborLight.red : brightestLightValue.red;
+			uchar brightestGreenValue = neighborLight.green > brightestLightValue.green ? neighborLight.green : brightestLightValue.green;
+			uchar brightestBlueValue = neighborLight.blue > brightestLightValue.blue ? neighborLight.blue : brightestLightValue.blue;
+			brightestLightValue = RGBA::CreateFromUChars(brightestRedValue, brightestGreenValue, brightestBlueValue, 0x00);
 		}
 	}
-	return lightValue;
+	return brightestLightValue;
 }
 
-uchar World::GetBrightestGreenNeighbor(const BlockInfo& info)
-{
-	uchar lightValue = 0x00;
-	if (info.m_index == BlockInfo::INVALID_INDEX)
-	{
-		return lightValue;
-	}
-	for (Direction neighborDirection : BlockInfo::directions)
-	{
-		BlockInfo neighborBlock = info.GetNeighbor(neighborDirection);
-		if (neighborBlock.m_index != BlockInfo::INVALID_INDEX)
-		{
-			uchar current = neighborBlock.GetBlock()->GetGreenLightValue();
-			lightValue = current > lightValue ? current : lightValue;
-		}
-	}
-	return lightValue;
-}
-
-uchar World::GetBrightestBlueNeighbor(const BlockInfo& info)
-{
-	uchar lightValue = 0x00;
-	if (info.m_index == BlockInfo::INVALID_INDEX)
-	{
-		return lightValue;
-	}
-	for (Direction neighborDirection : BlockInfo::directions)
-	{
-		BlockInfo neighborBlock = info.GetNeighbor(neighborDirection);
-		if (neighborBlock.m_index != BlockInfo::INVALID_INDEX)
-		{
-			uchar current = neighborBlock.GetBlock()->GetBlueLightValue();
-			lightValue = current > lightValue ? current : lightValue;
-		}
-	}
-	return lightValue;
-}
-
+//-----------------------------------------------------------------------------------
 void ChunkGenerationThreadMain()
 {
 	while (!g_isQuitting)
 	{
 		Sleep(0);
 		bool gotCoords = false;
-		ChunkCoords coords;
+		PrioritizedChunkCoords coords;
 		EnterCriticalSection(&g_chunkListsCriticalSection);
-		if (!g_requestedChunkGenerationList.empty())
+		if (!g_requestedChunkGenerationSet.empty())
 		{
 			gotCoords = true;
-			coords = *g_requestedChunkGenerationList.begin();
+			coords = (*g_requestedChunkGenerationSet.begin());
+			g_requestedChunkGenerationSet.erase(coords);
 		}
 		LeaveCriticalSection(&g_chunkListsCriticalSection);
 		if (!gotCoords)
 			continue;
-		Chunk* newChunk = new Chunk(coords, TheGame::instance->m_world);
+		Chunk* newChunk = new Chunk(coords.chunkCoords, coords.world);
 		EnterCriticalSection(&g_chunkListsCriticalSection);
 		{
-			g_requestedChunkGenerationList.erase(coords);
-			g_readyToActivateChunks.emplace_back(newChunk);
+			g_readyToActivateChunksDeque.emplace_back(newChunk);
 		}
 		LeaveCriticalSection(&g_chunkListsCriticalSection);
 	}
 	
 }
 
+//-----------------------------------------------------------------------------------
 void ChunkIOThreadMain()
 {
 	while (!g_isQuitting)
@@ -994,21 +1042,22 @@ void ChunkIOThreadMain()
 		Sleep(0);
 		bool gotCoords = false;
 		Chunk* chunkToSave = nullptr;
-		ChunkCoords chunkToLoadCoords = ChunkCoords();
+		PrioritizedChunkCoords chunkToLoadCoords;
 
 		EnterCriticalSection(&g_diskIOCriticalSection);
 		{
-			if (!g_requestedChunkLoadList.empty())
+			if (!g_requestedChunkLoadSet.empty())
 			{
 				gotCoords = true;
-				chunkToLoadCoords = *g_requestedChunkLoadList.begin();
+				chunkToLoadCoords = *g_requestedChunkLoadSet.begin();
+				g_requestedChunkLoadSet.erase(chunkToLoadCoords);
 			}
-			if (!g_requestedChunkSaveList.empty())
+			if (!g_requestedChunkSaveDeque.empty())
 			{
-				chunkToSave = g_requestedChunkSaveList.back();		
+				chunkToSave = g_requestedChunkSaveDeque.back();		
 				if (chunkToSave)
 				{
-					g_requestedChunkSaveList.pop_back();
+					g_requestedChunkSaveDeque.pop_back();
 				}
 			}
 		}
@@ -1016,20 +1065,14 @@ void ChunkIOThreadMain()
 
 		if (gotCoords)
 		{
-			Chunk* loadedChunk = World::LoadChunk(chunkToLoadCoords);
+			Chunk* loadedChunk = World::LoadChunk(chunkToLoadCoords.world->m_worldID,chunkToLoadCoords.chunkCoords);
 			if (loadedChunk)
 			{
 				EnterCriticalSection(&g_chunkListsCriticalSection);
 				{
-					g_readyToActivateChunks.emplace_back(loadedChunk);
+					g_readyToActivateChunksDeque.emplace_back(loadedChunk);
 				}
 				LeaveCriticalSection(&g_chunkListsCriticalSection);
-				
-				EnterCriticalSection(&g_diskIOCriticalSection);
-				{
-					g_requestedChunkLoadList.erase(chunkToLoadCoords);
-				}
-				LeaveCriticalSection(&g_diskIOCriticalSection);
 			}
 		}
 		if (chunkToSave)

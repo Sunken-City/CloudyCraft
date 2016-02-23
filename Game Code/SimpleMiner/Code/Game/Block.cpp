@@ -2,6 +2,7 @@
 #include "Engine/Renderer/SpriteSheet.hpp"
 #include "Engine/Renderer/Face.hpp"
 
+//-----------------------------------------------------------------------------------
 Block::Block(unsigned char type)
 : m_type(type)
 , m_lightAndFlags(0)
@@ -11,6 +12,7 @@ Block::Block(unsigned char type)
 {
 }
 
+//-----------------------------------------------------------------------------------
 Block::Block()
 : m_type(0)
 , m_lightAndFlags(0)
@@ -20,16 +22,19 @@ Block::Block()
 {
 }
 
+//-----------------------------------------------------------------------------------
 void Block::Update(float deltaTime)
 {
 	UNUSED(deltaTime);
 }
 
+//-----------------------------------------------------------------------------------
 void Block::Render() const
 {
 
 }
 
+//-----------------------------------------------------------------------------------
 Face Block::GetFace(const Vector3Int& bottomLeftCorner, const Vector3Int& faceNormal)
 {
 	Vector3 origin = Vector3(bottomLeftCorner);
@@ -85,6 +90,7 @@ Face Block::GetFace(const Vector3Int& bottomLeftCorner, const Vector3Int& faceNo
 	return Face(Vector3::ZERO, Vector3::ZERO, Vector3::ZERO, Vector3::ZERO);
 }
 
+//-----------------------------------------------------------------------------------
 void Block::SetVisible(Direction visibleFace)
 {
 	uchar bitmaskFaceVisible = 0x00;

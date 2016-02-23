@@ -1,12 +1,10 @@
 //-----------------------------------------------------------------------------------------------
 // Time.cpp
 
-
 //-----------------------------------------------------------------------------------------------
 #include "Engine/Time/Time.hpp"
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-
 
 //---------------------------------------------------------------------------
 double InitializeTime( LARGE_INTEGER& out_initialTime )
@@ -16,7 +14,6 @@ double InitializeTime( LARGE_INTEGER& out_initialTime )
 	QueryPerformanceCounter( &out_initialTime );
 	return( 1.0 / static_cast< double >( countsPerSecond.QuadPart ) );
 }
-
 
 //---------------------------------------------------------------------------
 double GetCurrentTimeSeconds()

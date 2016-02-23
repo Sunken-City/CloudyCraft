@@ -1,11 +1,13 @@
 #include "Engine/Math/EulerAngles.hpp"
 #include "Engine/Math/MathUtils.hpp"
-#include <math.h>
+#include <cmath>
 
+//-----------------------------------------------------------------------------------
 EulerAngles::EulerAngles()
 {
 }
 
+//-----------------------------------------------------------------------------------
 EulerAngles::EulerAngles(float initialX, float initialY, float initialZ)
 	: rollDegreesAboutX(initialX)
 	, pitchDegreesAboutY(initialY)
@@ -13,6 +15,7 @@ EulerAngles::EulerAngles(float initialX, float initialY, float initialZ)
 {
 }
 
+//-----------------------------------------------------------------------------------
 EulerAngles::EulerAngles(const EulerAngles& other) 
 	: rollDegreesAboutX(other.rollDegreesAboutX)
 	, pitchDegreesAboutY(other.pitchDegreesAboutY)
@@ -20,6 +23,7 @@ EulerAngles::EulerAngles(const EulerAngles& other)
 {
 }
 
+//-----------------------------------------------------------------------------------
 void EulerAngles::SetXYZ(float newX, float newY, float newZ)
 {
 	rollDegreesAboutX = newX;
@@ -27,11 +31,13 @@ void EulerAngles::SetXYZ(float newX, float newY, float newZ)
 	yawDegreesAboutZ = newZ;
 }
 
+//-----------------------------------------------------------------------------------
 float EulerAngles::CalculateMagnitude()
 {
 	return sqrt((rollDegreesAboutX*rollDegreesAboutX) + (pitchDegreesAboutY*pitchDegreesAboutY) + (yawDegreesAboutZ*yawDegreesAboutZ));
 }
 
+//-----------------------------------------------------------------------------------
 void EulerAngles::Normalize()
 {
 	float len = CalculateMagnitude();
@@ -41,6 +47,7 @@ void EulerAngles::Normalize()
 	yawDegreesAboutZ /= len;
 }
 
+//-----------------------------------------------------------------------------------
 EulerAngles& EulerAngles::operator+=(const EulerAngles& rhs)
 {
 	this->rollDegreesAboutX += rhs.rollDegreesAboutX;
@@ -49,6 +56,7 @@ EulerAngles& EulerAngles::operator+=(const EulerAngles& rhs)
 	return *this;
 }
 
+//-----------------------------------------------------------------------------------
 EulerAngles& EulerAngles::operator-=(const EulerAngles& rhs)
 {
 	this->rollDegreesAboutX -= rhs.rollDegreesAboutX;
@@ -57,6 +65,7 @@ EulerAngles& EulerAngles::operator-=(const EulerAngles& rhs)
 	return *this;
 }
 
+//-----------------------------------------------------------------------------------
 EulerAngles& EulerAngles::operator*=(const float& scalarConstant)
 {
 	this->rollDegreesAboutX *= scalarConstant;

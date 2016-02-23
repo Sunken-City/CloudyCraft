@@ -21,10 +21,11 @@ public:
 
 void StartTiming();
 double EndTiming();
+void ResetStats();
 ProfilingID RegisterProfilingChannel();
 void StartTiming(ProfilingID id);
 void EndTiming(ProfilingID id);
 
-extern std::chrono::high_resolution_clock::time_point start;
-extern std::chrono::high_resolution_clock::time_point end;
+extern std::chrono::high_resolution_clock::time_point profilingStartTime;
+extern std::chrono::high_resolution_clock::time_point profilingEndTime;
 extern std::vector<TimingInfo> profilingResults;

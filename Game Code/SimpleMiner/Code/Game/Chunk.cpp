@@ -1,12 +1,13 @@
 #include "Chunk.hpp"
 #include "Engine/Math/Vector3Int.hpp"
-#include "Engine/Math/Noise.hpp"
 #include "Engine/Renderer/Vertex.hpp"
 #include "Engine/Renderer/SpriteSheet.hpp"
 #include "Game/BlockDefinition.h"
 #include "Game/World.hpp"
+#include "Game/Generator.hpp"
 #include <map>
 
+//-----------------------------------------------------------------------------------
 Chunk::Chunk(const ChunkCoords& chunkCoords, World* world)
 : m_chunkPosition(chunkCoords)
 , m_bottomLeftCorner(WorldPosition(static_cast<float>((m_chunkPosition.x * BLOCKS_WIDE_X)), static_cast<float>((m_chunkPosition.y * BLOCKS_WIDE_Y)), 0.0f))
@@ -14,16 +15,18 @@ Chunk::Chunk(const ChunkCoords& chunkCoords, World* world)
 , m_westChunk(nullptr)
 , m_southChunk(nullptr)
 , m_northChunk(nullptr)
-, m_isDirty(true)
+, m_isDirty(false)
 , m_world(world)
 , m_vboID(0)
 , m_numVerts(0)
 {
+	//REMINDER: THREAD-SAFE CODE ONLY!
 	memset(m_blocks, 0, sizeof(m_blocks[0]) * BLOCKS_PER_CHUNK);
 	GenerateChunk();
+	SetEdgeBits();
 }
 
-
+//-----------------------------------------------------------------------------------
 Chunk::Chunk(const ChunkCoords& chunkCoords, std::vector<unsigned char>& data, World* world)
 : m_chunkPosition(chunkCoords)
 , m_bottomLeftCorner(WorldPosition(static_cast<float>((m_chunkPosition.x * BLOCKS_WIDE_X)), static_cast<float>((m_chunkPosition.y * BLOCKS_WIDE_Y)), 0.0f))
@@ -31,94 +34,45 @@ Chunk::Chunk(const ChunkCoords& chunkCoords, std::vector<unsigned char>& data, W
 , m_westChunk(nullptr)
 , m_southChunk(nullptr)
 , m_northChunk(nullptr)
-, m_isDirty(true)
+, m_isDirty(false)
 , m_world(world)
 , m_vboID(0)
 , m_numVerts(0)
 {
+	//REMINDER: THREAD-SAFE CODE ONLY!
 	memset(m_blocks, 0, sizeof(m_blocks[0]) * BLOCKS_PER_CHUNK);
 	LoadChunkFromData(data);
+	SetEdgeBits();
 }
 
+//-----------------------------------------------------------------------------------
 Chunk::~Chunk()
 {
+	DebuggerPrintf("[%i] World [%i]: Deleting Chunk %i,%i\n", g_frameNumber, m_world->m_worldID, m_chunkPosition.x, m_chunkPosition.y);
 	TheRenderer::instance->DeleteBuffers(m_vboID);
 }
 
+//-----------------------------------------------------------------------------------
 void Chunk::Update(float deltaTime)
 {
 	UNUSED(deltaTime);
 }
 
-void Chunk::UpdateVAIfDirty()
-{
-	if (m_isDirty)
-	{
-		GenerateVertexArray();
-		m_isDirty = false;
-	}
-}
-
+//-----------------------------------------------------------------------------------
 void Chunk::Render() const
 {
 	TheRenderer::instance->DrawVBO_PCT(m_vboID, m_numVerts, TheRenderer::QUADS, TheGame::instance->m_blockSheet->GetTexture());
 }
 
+//-----------------------------------------------------------------------------------
 void Chunk::GenerateChunk()
 {
 	StartTiming(g_generationProfiling);
-	const int MIN_HEIGHT = BLOCKS_TALL_Z / 3;
-	const int MAX_HEIGHT = (BLOCKS_TALL_Z * 3) / 4;
-	const int SEA_LEVEL = BLOCKS_TALL_Z / 2;
-	const float GRID_SIZE = 100.0f;
-	const int NUM_OCTAVES = 5;
-	const float PERSISTENCE = 0.30f;
-	std::map<Vector2Int, float> heights;
-
-	Vector2Int chunkPosInWorld = Vector2Int(m_chunkPosition.x * BLOCKS_WIDE_X, m_chunkPosition.y * BLOCKS_WIDE_X);
-	for (int x = chunkPosInWorld.x; x < (chunkPosInWorld.x + BLOCKS_WIDE_X); x++)
-	{
-		for (int y = chunkPosInWorld.y; y < (chunkPosInWorld.y + BLOCKS_WIDE_Y); y++)
-		{
-			Vector2 currentColumn = Vector2(static_cast<float>(x), static_cast<float>(y));
-			float delta = ComputePerlinNoise2D(currentColumn, GRID_SIZE, NUM_OCTAVES, PERSISTENCE);
-			heights[Vector2Int(x, y)] = round(MathUtils::RangeMap(delta, -1.0f, 1.0f, static_cast<float>(MIN_HEIGHT), static_cast<float>(MAX_HEIGHT)));
-		}
-	}
-
-	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
-	{
-		WorldCoords globalCoords = GetWorldCoordsForBlockIndex(i);
-		Vector2Int currentColumn = Vector2Int(globalCoords.x, globalCoords.y);
-		float height = heights[currentColumn];
-		float z = static_cast<float>(globalCoords.z);
-		if (z > height)
-		{
-			if (z <= SEA_LEVEL)
-				m_blocks[i].m_type = BlockType::WATER;
-			else
-				m_blocks[i].m_type = BlockType::AIR;
-		}
-		else if (z < SEA_LEVEL)
-		{
-			m_blocks[i].m_type = BlockType::STONE;
-		}
-		else if (z == SEA_LEVEL)
-		{
-			m_blocks[i].m_type = BlockType::SAND;
-		}
-		else if (z < height)
-		{
-			m_blocks[i].m_type = BlockType::DIRT;
-		}
-		else if (z == height)
-		{
-			m_blocks[i].m_type = BlockType::GRASS;
-		}
-	}
+	m_world->m_generator->GenerateChunk(m_blocks, this);
 	EndTiming(g_generationProfiling);
 }
 
+//-----------------------------------------------------------------------------------
 void Chunk::CalculateSkyLighting()
 {
 	//Sky Pass 1
@@ -137,9 +91,7 @@ void Chunk::CalculateSkyLighting()
 				else
 				{
 					currentBlock->SetSky(true);
-					currentBlock->SetRedLightValue(RGBA::GetRed(World::SKY_LIGHT));
-					currentBlock->SetGreenLightValue(RGBA::GetGreen(World::SKY_LIGHT));
-					currentBlock->SetBlueLightValue(RGBA::GetBlue(World::SKY_LIGHT));
+					currentBlock->SetLightValue(m_world->m_skyLight);
 					info = info.GetBelow();
 				}
 			}
@@ -193,27 +145,51 @@ void Chunk::CalculateSkyLighting()
 		BlockDefinition* definition = BlockDefinition::GetDefinition(currentBlock->m_type);
 		if (definition->m_illumination > 0)
 		{
-			SetDirtyFlagAndAddToDirtyList(i);
+			SetBlockDirtyAndAddToDirtyList(i);
 		}
 	}
-	FlagEdgesAsDirtyLighting();
 }
 
+//-----------------------------------------------------------------------------------
+void Chunk::ActivateVisibleFaces()
+{
+	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
+	{
+		BlockInfo currentBlock = BlockInfo(this, i);
+		for (int j = 0; j < NUM_DIRECTIONS; j++)
+		{
+			Direction direction = (Direction)j;
+			Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
+			if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
+			{
+				currentBlock.GetBlock()->SetVisible(direction);
+			}
+			else
+			{
+				currentBlock.GetBlock()->SetHidden(direction);
+			}
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------------
 WorldCoords Chunk::GetWorldCoordsForBlockIndex(LocalIndex index) const
 {
 	LocalCoords coords = GetLocalCoordsFromBlockIndex(index);
-	return WorldCoords(coords.x + m_bottomLeftCorner.x, coords.y + m_bottomLeftCorner.y, coords.z);
+	return WorldCoords(coords.x + static_cast<int>(m_bottomLeftCorner.x), coords.y + static_cast<int>(m_bottomLeftCorner.y), coords.z);
 }
 
+//-----------------------------------------------------------------------------------
 LocalIndex Chunk::GetBlockIndexFromWorldCoords(const WorldCoords& coords) const
 {
 	LocalCoords localCoords = GetLocalCoordsFromWorldCoords(coords);
 	return GetBlockIndexFromLocalCoords(localCoords);
 }
 
+//-----------------------------------------------------------------------------------
 LocalCoords Chunk::GetLocalCoordsFromWorldCoords(const WorldCoords &coords) const
 {
-	LocalCoords localCoords = LocalCoords(coords.x - m_bottomLeftCorner.x, coords.y - m_bottomLeftCorner.y, coords.z);
+	LocalCoords localCoords = LocalCoords(coords.x - static_cast<int>(m_bottomLeftCorner.x), coords.y - static_cast<int>(m_bottomLeftCorner.y), coords.z);
 	if (localCoords.z > BLOCKS_TALL_Z)
 	{
 		localCoords.z = BLOCKS_TALL_Z;
@@ -222,25 +198,27 @@ LocalCoords Chunk::GetLocalCoordsFromWorldCoords(const WorldCoords &coords) cons
 	{
 		localCoords.z = 0;
 	}
-	return localCoords;
+	return localCoords; 
 }
-
+//-----------------------------------------------------------------------------------
 LocalCoords Chunk::GetLocalCoordsFromWorldPosition(const WorldPosition &pos) const
 {
 	return GetLocalCoordsFromWorldCoords(WorldCoords(static_cast<int>(floor(pos.x)), static_cast<int>(floor(pos.y)), static_cast<int>(floor(pos.z))));
 }
 
+//-----------------------------------------------------------------------------------
 LocalIndex Chunk::GetBlockIndexFromWorldPosition(const WorldPosition& pos) const
 {
 	return GetBlockIndexFromWorldCoords(WorldCoords(static_cast<int>(floor(pos.x)), static_cast<int>(floor(pos.y)), static_cast<int>(floor(pos.z))));
 }
 
+//-----------------------------------------------------------------------------------
 bool Chunk::IsInFrustum(const Vector3& cameraXYZ, const WorldPosition& playerPosition) const
 {
 	const Vector3 chunkMins = Vector3(static_cast<float>(m_chunkPosition.x * Chunk::BLOCKS_WIDE_X), static_cast<float>(m_chunkPosition.y * Chunk::BLOCKS_WIDE_Y), 0.0f);
-	const Vector3 chunkOffsetX = Vector3::UNIT_X * Chunk::BLOCKS_WIDE_X;
-	const Vector3 chunkOffsetY = Vector3::UNIT_Y * Chunk::BLOCKS_WIDE_Y;
-	const Vector3 chunkOffsetZ = Vector3::UNIT_Z * Chunk::BLOCKS_TALL_Z;
+	const Vector3 chunkOffsetX = Vector3::UNIT_X * static_cast<float>(Chunk::BLOCKS_WIDE_X);
+	const Vector3 chunkOffsetY = Vector3::UNIT_Y * static_cast<float>(Chunk::BLOCKS_WIDE_Y);
+	const Vector3 chunkOffsetZ = Vector3::UNIT_Z * static_cast<float>(Chunk::BLOCKS_TALL_Z);
 	const Vector3 chunkMaxs = Vector3(static_cast<float>(m_chunkPosition.x * Chunk::BLOCKS_WIDE_X), static_cast<float>(m_chunkPosition.y * Chunk::BLOCKS_WIDE_Y), static_cast<float>(Chunk::BLOCKS_TALL_Z));
 	if (MathUtils::Dot(cameraXYZ, chunkMins - playerPosition) > 0.0f)
 	{
@@ -280,15 +258,17 @@ bool Chunk::IsInFrustum(const Vector3& cameraXYZ, const WorldPosition& playerPos
 	}
 }
 
+//-----------------------------------------------------------------------------------
 void Chunk::GenerateVertexArray()
 {
+	DebuggerPrintf("[%i] World [%i]: Building Chunk %i,%i VA\n", g_frameNumber, m_world->m_worldID, m_chunkPosition.x, m_chunkPosition.y);
 	StartTiming(g_vaBuildingProfiling);
 	if (m_vboID == 0)
 	{
 		m_vboID = TheRenderer::instance->GenerateBufferID();
 	}
-	std::vector<Vertex_PCT> m_vertexArray;
-	m_vertexArray.reserve(1000);
+	std::vector<Vertex_PCT> tempVertexArray;
+	tempVertexArray.reserve(5000);
 	const float blockSize = 1.0f;
 	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
 	{
@@ -298,7 +278,7 @@ void Chunk::GenerateVertexArray()
 			continue;
 		}
 
-		WorldPosition coords = GetWorldPositionForBlockIndex(i);
+		WorldPosition coords = GetWorldMinsForBlockIndex(i);
 		Vertex_PCT vertex;
 		vertex.color = RGBA(0x000000FF);
 		BlockDefinition* currentDefinition = BlockDefinition::GetDefinition(currentBlock.m_type);
@@ -312,16 +292,16 @@ void Chunk::GenerateVertexArray()
 			vertex.color = RGBA(belowBlock->GetDampedLightValue(0x33));
 			vertex.texCoords = bottomTex.mins;
 			vertex.pos = Vector3(coords.x, coords.y, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(bottomTex.maxs.x, bottomTex.mins.y);
 			vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = bottomTex.maxs;
 			vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(bottomTex.mins.x, bottomTex.maxs.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 		}
 
 		Block* aboveBlock = GetAbove(i);
@@ -330,16 +310,16 @@ void Chunk::GenerateVertexArray()
 			vertex.color = RGBA(aboveBlock->GetLightValue());
 			vertex.texCoords = Vector2(topTex.mins.x, topTex.mins.y);
 			vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(topTex.maxs.x, topTex.mins.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(topTex.maxs.x, topTex.maxs.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(topTex.mins.x, topTex.maxs.y);
 			vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 		}
 
 		Block* westBlock = GetWest(i);
@@ -348,16 +328,16 @@ void Chunk::GenerateVertexArray()
 			vertex.color = RGBA(westBlock->GetDampedLightValue(0x22));
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x, coords.y, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
 			vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
 			vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 		}
 
 		Block* eastBlock = GetEast(i);
@@ -366,16 +346,16 @@ void Chunk::GenerateVertexArray()
 			vertex.color = RGBA(eastBlock->GetDampedLightValue(0x22));
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 		}
 
 		Block* southBlock = GetSouth(i);
@@ -384,16 +364,16 @@ void Chunk::GenerateVertexArray()
 			vertex.color = RGBA(southBlock->GetDampedLightValue(0x11));
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x, coords.y, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
 			vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 		}
 
 		Block* northBlock = GetNorth(i);
@@ -402,25 +382,18 @@ void Chunk::GenerateVertexArray()
 			vertex.color = RGBA(northBlock->GetDampedLightValue(0x11));
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
 			vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
+			tempVertexArray.push_back(vertex);
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
-			m_vertexArray.push_back(vertex);
-		}		
+			tempVertexArray.push_back(vertex);
+		}
 	}
-
-// 	StartTiming(g_temporaryProfiling);
-// 	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
-// 	{
-// 		WorldPosition coords = GetWorldPositionForBlockIndex(i);
-// 	}
-// 	EndTiming(g_temporaryProfiling);
 
 	//Opaque drawing
 	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
@@ -431,7 +404,7 @@ void Chunk::GenerateVertexArray()
 			continue;
 		}
 
-		WorldPosition coords = GetWorldPositionForBlockIndex(i);
+		WorldPosition coords = GetWorldMinsForBlockIndex(i);
 		Vertex_PCT vertex;
 		vertex.color = RGBA(0x000000FF);
 		BlockDefinition* currentDefinition = currentBlock.GetDefinition();
@@ -451,16 +424,16 @@ void Chunk::GenerateVertexArray()
 				vertex.color = RGBA(belowBlock->GetDampedLightValue(0x33));
 				vertex.texCoords = bottomTex.mins;
 				vertex.pos = Vector3(coords.x, coords.y, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(bottomTex.maxs.x, bottomTex.mins.y);
 				vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = bottomTex.maxs;
 				vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(bottomTex.mins.x, bottomTex.maxs.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 			}
 		}
 
@@ -474,16 +447,16 @@ void Chunk::GenerateVertexArray()
 				vertex.color = RGBA(aboveBlock->GetLightValue());
 				vertex.texCoords = Vector2(topTex.mins.x, topTex.mins.y);
 				vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(topTex.maxs.x, topTex.mins.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(topTex.maxs.x, topTex.maxs.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(topTex.mins.x, topTex.maxs.y);
 				vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 			}
 		}
 
@@ -497,16 +470,16 @@ void Chunk::GenerateVertexArray()
 				vertex.color = RGBA(westBlock->GetDampedLightValue(0x22));
 				vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 				vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
 				vertex.pos = Vector3(coords.x, coords.y, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
 				vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
 				vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 			}
 		}
 
@@ -520,16 +493,16 @@ void Chunk::GenerateVertexArray()
 				vertex.color = RGBA(eastBlock->GetDampedLightValue(0x22));
 				vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 			}
 		}
 
@@ -543,16 +516,16 @@ void Chunk::GenerateVertexArray()
 				vertex.color = RGBA(southBlock->GetDampedLightValue(0x11));
 				vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 				vertex.pos = Vector3(coords.x, coords.y, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
 				vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 			}
 		}
 
@@ -566,24 +539,167 @@ void Chunk::GenerateVertexArray()
 				vertex.color = RGBA(northBlock->GetDampedLightValue(0x11));
 				vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
 				vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
 				vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 				vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
 				vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
-				m_vertexArray.push_back(vertex);
+				tempVertexArray.push_back(vertex);
 			}
 		}
 	}
-	m_numVerts = m_vertexArray.size();
-	TheRenderer::instance->BindAndBufferVBOData(m_vboID, m_vertexArray.data(), m_numVerts);
+
+	//HSR using bitflags is currently a work-in-progress.
+// 	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
+// 	{
+// 		Block currentBlock = m_blocks[i];
+// 		if (!currentBlock.GetDefinition()->m_isOpaque)
+// 		{
+// 			continue;
+// 		}
+// 		PushBackVisibleSides(i, currentBlock, tempVertexArray, blockSize);
+// 	}
+// 
+// 	//Opaque drawing
+// 	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
+// 	{
+// 		Block currentBlock = m_blocks[i];
+// 		if (currentBlock.GetDefinition()->m_isOpaque || currentBlock.m_type == BlockType::AIR)
+// 		{
+// 			continue;
+// 		}
+// 		PushBackVisibleSides(i, currentBlock, tempVertexArray, blockSize);
+// 	}
+	m_numVerts = tempVertexArray.size();
+	TheRenderer::instance->BindAndBufferVBOData(m_vboID, tempVertexArray.data(), m_numVerts);
+	m_isDirty = false;
 	EndTiming(g_vaBuildingProfiling);
 }
 
+void Chunk::PushBackVisibleSides(int currentBlockIndex, Block &currentBlock, std::vector<Vertex_PCT> &m_vertexArray, const float blockSize)
+{
+	WorldPosition coords = GetWorldMinsForBlockIndex(currentBlockIndex);
+	Vertex_PCT vertex;
+	vertex.color = RGBA(0x000000FF);
+	BlockDefinition* currentDefinition = BlockDefinition::GetDefinition(currentBlock.m_type);
+	AABB2 topTex = currentDefinition->GetTopIndex();
+	AABB2 sideTex = currentDefinition->GetSideIndex();
+	AABB2 bottomTex = currentDefinition->GetBottomIndex();
+
+	if (currentBlock.IsBelowVisible())
+	{
+		Block* belowBlock = GetBelow(currentBlockIndex);
+		vertex.color = RGBA(belowBlock->GetDampedLightValue(0x33));
+		vertex.texCoords = bottomTex.mins;
+		vertex.pos = Vector3(coords.x, coords.y, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(bottomTex.maxs.x, bottomTex.mins.y);
+		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = bottomTex.maxs;
+		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(bottomTex.mins.x, bottomTex.maxs.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
+		m_vertexArray.push_back(vertex);
+	}
+
+	if (currentBlock.IsAboveVisible())
+	{
+		Block* aboveBlock = GetAbove(currentBlockIndex);
+		vertex.color = RGBA(aboveBlock->GetLightValue());
+		vertex.texCoords = Vector2(topTex.mins.x, topTex.mins.y);
+		vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(topTex.maxs.x, topTex.mins.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(topTex.maxs.x, topTex.maxs.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(topTex.mins.x, topTex.maxs.y);
+		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+	}
+
+	if (currentBlock.IsWestVisible())
+	{
+		Block* westBlock = GetWest(currentBlockIndex);
+		vertex.color = RGBA(westBlock->GetDampedLightValue(0x22));
+		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
+		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
+		vertex.pos = Vector3(coords.x, coords.y, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
+		vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
+		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+	}
+
+	if (currentBlock.IsEastVisible())
+	{
+		Block* eastBlock = GetEast(currentBlockIndex);
+		vertex.color = RGBA(eastBlock->GetDampedLightValue(0x22));
+		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+	}
+
+	if (currentBlock.IsSouthVisible())
+	{
+		Block* southBlock = GetSouth(currentBlockIndex);
+		vertex.color = RGBA(southBlock->GetDampedLightValue(0x11));
+		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
+		vertex.pos = Vector3(coords.x, coords.y, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
+		vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+	}
+
+	if (currentBlock.IsNorthVisible())
+	{
+		Block* northBlock = GetNorth(currentBlockIndex);
+		vertex.color = RGBA(northBlock->GetDampedLightValue(0x11));
+		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
+		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
+		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
+		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
+		m_vertexArray.push_back(vertex);
+	}
+}
+
+//-----------------------------------------------------------------------------------
 void Chunk::GenerateSaveData(std::vector<unsigned char>& data)
 {
 	uchar currentType = m_blocks[0].m_type;
@@ -606,6 +722,7 @@ void Chunk::GenerateSaveData(std::vector<unsigned char>& data)
 	data.push_back(numOfType);
 }
 
+//-----------------------------------------------------------------------------------
 void Chunk::LoadChunkFromData(std::vector<unsigned char>& data)
 {
 	int currentIndex = 0;
@@ -620,35 +737,221 @@ void Chunk::LoadChunkFromData(std::vector<unsigned char>& data)
 	}
 }
 
-void Chunk::SetDirtyFlagAndAddToDirtyList(LocalIndex blockToDirtyIndex)
+//-----------------------------------------------------------------------------------
+void Chunk::SetBlockDirtyAndAddToDirtyList(LocalIndex blockToDirtyIndex)
 {
 	Block* blockToDirty = GetBlock(blockToDirtyIndex);
 	blockToDirty->SetDirty(true);
 	m_world->m_dirtyBlocks.emplace_back(BlockInfo(this, blockToDirtyIndex));
 }
 
+//-----------------------------------------------------------------------------------
+void Chunk::DirtyAndAddToDirtyList()
+{
+	//Don't do anything if we're already in the list.
+	if (m_isDirty == true)
+	{
+		return;
+	}
+	m_isDirty = true;
+	m_world->m_dirtyChunks.emplace(this, m_world->DistanceSquaredFromPlayerToChunk(this->m_chunkPosition));
+}
+
+//-----------------------------------------------------------------------------------
+void Chunk::SetHighPriorityChunkDirtyAndAddToDirtyList()
+{
+	m_isDirty = true;
+	m_world->m_dirtyChunks.emplace(this, 0.0f);
+}
+
+//-----------------------------------------------------------------------------------
 void Chunk::SetEdgeBits()
 {
-	for (int index = 0; index < BLOCKS_PER_CHUNK; index++)
+	//Directions are relative to the top layer of the chunk, viewed from above.
+	const int TOP_LEFT_INDEX = BLOCKS_PER_CHUNK - BLOCKS_WIDE_X;
+	const int TOP_RIGHT_INDEX = BLOCKS_PER_CHUNK - 1;
+	const int BOTTOM_RIGHT_INDEX_MINUS_1 = BLOCKS_PER_CHUNK - BLOCKS_PER_LAYER + (BLOCKS_WIDE_X - 2);
+	const int TOP_RIGHT_INDEX_MINUS_1 = BLOCKS_PER_CHUNK - 2;
+	//West Side
+	for (int index = 0; index < TOP_LEFT_INDEX; index += BLOCKS_WIDE_Y)
 	{
-		if (((index & LOCAL_X_MASK) == LOCAL_X_MASK)
-			|| ((index & LOCAL_X_MASK) == 0x00)
-			|| ((index & LOCAL_Y_MASK) == LOCAL_Y_MASK)
-			|| ((index & LOCAL_Y_MASK) == 0x00))
+		GetBlock(index)->SetEdgeBlock(true);
+	}
+	//East Side
+	for (int index = BLOCKS_WIDE_X - 1; index < TOP_RIGHT_INDEX; index += BLOCKS_WIDE_Y)
+	{
+		GetBlock(index)->SetEdgeBlock(true);
+	}
+	//North Side
+	for (int index = BLOCKS_PER_LAYER - BLOCKS_WIDE_X + 1; index < TOP_RIGHT_INDEX_MINUS_1; index += BLOCKS_PER_LAYER)
+	{
+		const int BLOCKS_PER_ITERATION = BLOCKS_WIDE_X - 2;
+		for (int j = 0; j < BLOCKS_PER_ITERATION; j++)
 		{
-			GetBlock(index)->SetEdgeBlock(true);
+			GetBlock(index + j)->SetEdgeBlock(true);
+		}
+	}
+	//South Side
+	for (int index = 1; index < BOTTOM_RIGHT_INDEX_MINUS_1; index += BLOCKS_PER_LAYER)
+	{
+		const int BLOCKS_PER_ITERATION = BLOCKS_WIDE_X - 2;
+		for (int j = 0; j < BLOCKS_PER_ITERATION; j++)
+		{
+			GetBlock(index + j)->SetEdgeBlock(true);
 		}
 	}
 }
 
-void Chunk::FlagEdgesAsDirtyLighting()
+//-----------------------------------------------------------------------------------
+void Chunk::UpdateChunkVisibleFlags(Direction direction)
 {
-	for (int index = 0; index < BLOCKS_PER_CHUNK; index++)
+	//Directions are relative to the top layer of the chunk, viewed from above.
+	const int TOP_LEFT_INDEX = BLOCKS_PER_CHUNK - BLOCKS_WIDE_X;
+	const int TOP_RIGHT_INDEX = BLOCKS_PER_CHUNK - 1;
+	const int BOTTOM_RIGHT_INDEX_MINUS_1 = BLOCKS_PER_CHUNK - BLOCKS_PER_LAYER + (BLOCKS_WIDE_X - 2);
+	const int TOP_RIGHT_INDEX_MINUS_1 = BLOCKS_PER_CHUNK - 2;
+	switch (direction)
 	{
-		Block* block = GetBlock(index);
-		if (block->IsEdgeBlock() && !BlockDefinition::GetDefinition(block->m_type)->m_isOpaque)
+	case NORTH:
+		//North Side
+		for (int index = BLOCKS_PER_LAYER - BLOCKS_WIDE_X + 1; index < TOP_RIGHT_INDEX_MINUS_1; index += BLOCKS_PER_LAYER)
 		{
-			SetDirtyFlagAndAddToDirtyList(index);
+			const int BLOCKS_PER_ITERATION = BLOCKS_WIDE_X - 2;
+			for (int j = 0; j < BLOCKS_PER_ITERATION; j++)
+			{
+				BlockInfo currentBlock = BlockInfo(this, index + j);
+				Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
+				if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
+				{
+					currentBlock.GetBlock()->SetVisible(direction);
+				}
+				else
+				{
+					currentBlock.GetBlock()->SetHidden(direction);
+				}
+			}
 		}
+		break;
+	case SOUTH:
+		//South Side
+		for (int index = 1; index < BOTTOM_RIGHT_INDEX_MINUS_1; index += BLOCKS_PER_LAYER)
+		{
+			const int BLOCKS_PER_ITERATION = BLOCKS_WIDE_X - 2;
+			for (int j = 0; j < BLOCKS_PER_ITERATION; j++)
+			{
+				BlockInfo currentBlock = BlockInfo(this, index + j);
+				Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
+				if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
+				{
+					currentBlock.GetBlock()->SetVisible(direction);
+				}
+				else
+				{
+					currentBlock.GetBlock()->SetHidden(direction);
+				}
+			}
+		}
+		break;
+	case EAST:
+		//East Side
+		for (int index = BLOCKS_WIDE_X - 1; index < TOP_RIGHT_INDEX; index += BLOCKS_WIDE_Y)
+		{
+			BlockInfo currentBlock = BlockInfo(this, index);
+			Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
+			if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
+			{
+				currentBlock.GetBlock()->SetVisible(direction);
+			}
+			else
+			{
+				currentBlock.GetBlock()->SetHidden(direction);
+			}
+		}
+		break;
+	case WEST:
+		//West Side
+		for (int index = 0; index < TOP_LEFT_INDEX; index += BLOCKS_WIDE_Y)
+		{
+			BlockInfo currentBlock = BlockInfo(this, index);
+			Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
+			if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
+			{
+				currentBlock.GetBlock()->SetVisible(direction);
+			}
+			else
+			{
+				currentBlock.GetBlock()->SetHidden(direction);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+//-----------------------------------------------------------------------------------
+void Chunk::FlagEdgesAsDirtyLighting(Direction dir)
+{
+	//Directions are relative to the top layer of the chunk, viewed from above.
+	const int TOP_LEFT_INDEX = BLOCKS_PER_CHUNK - BLOCKS_WIDE_X;
+	const int TOP_RIGHT_INDEX = BLOCKS_PER_CHUNK - 1;
+	const int BOTTOM_RIGHT_INDEX_MINUS_1 = BLOCKS_PER_CHUNK - BLOCKS_PER_LAYER + (BLOCKS_WIDE_X - 2);
+	const int TOP_RIGHT_INDEX_MINUS_1 = BLOCKS_PER_CHUNK - 2;
+	switch (dir)
+	{
+	case NORTH:
+		//North Side
+		for (int index = BLOCKS_PER_LAYER - BLOCKS_WIDE_X + 1; index < TOP_RIGHT_INDEX_MINUS_1; index += BLOCKS_PER_LAYER)
+		{
+			const int BLOCKS_PER_ITERATION = BLOCKS_WIDE_X - 2;
+			for (int j = 0; j < BLOCKS_PER_ITERATION; j++)
+			{
+				Block* block = GetBlock(index + j);
+				if (block->IsSky() || BlockDefinition::GetDefinition(block->m_type)->IsIlluminated())
+				{
+					SetBlockDirtyAndAddToDirtyList(index + j);
+				}
+			}
+		}
+		break;
+	case SOUTH:
+		//South Side
+		for (int index = 1; index < BOTTOM_RIGHT_INDEX_MINUS_1; index += BLOCKS_PER_LAYER)
+		{
+			const int BLOCKS_PER_ITERATION = BLOCKS_WIDE_X - 2;
+			for (int j = 0; j < BLOCKS_PER_ITERATION; j++)
+			{
+				Block* block = GetBlock(index + j);
+				if (block->IsSky() || BlockDefinition::GetDefinition(block->m_type)->IsIlluminated())
+				{
+					SetBlockDirtyAndAddToDirtyList(index + j);
+				}
+			}
+		}
+		break;
+	case EAST:
+		//East Side
+		for (int index = BLOCKS_WIDE_X - 1; index < TOP_RIGHT_INDEX; index += BLOCKS_WIDE_Y)
+		{
+			Block* block = GetBlock(index);
+			if (block->IsSky() || BlockDefinition::GetDefinition(block->m_type)->IsIlluminated())
+			{
+				SetBlockDirtyAndAddToDirtyList(index);
+			}
+		}
+		break;
+	case WEST:
+		//West Side
+		for (int index = 0; index < TOP_LEFT_INDEX; index += BLOCKS_WIDE_Y)
+		{
+			Block* block = GetBlock(index);
+			if (block->IsSky() || BlockDefinition::GetDefinition(block->m_type)->IsIlluminated())
+			{
+				SetBlockDirtyAndAddToDirtyList(index);
+			}
+		}
+		break;
+	default:
+		break;
 	}
 }

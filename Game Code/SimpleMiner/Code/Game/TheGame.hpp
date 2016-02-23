@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 
 class SpriteSheet;
 class RGBA;
@@ -12,7 +13,6 @@ public:
 	TheGame();
 	~TheGame();
 	void Update(float deltaTime);
-	void UpdateCamera(float deltaTime);
 	void SetUp3DPerspective() const;
 	void Render() const;
 
@@ -27,9 +27,11 @@ public:
 	SpriteSheet* m_blockSheet;
 	Camera3D* m_playerCamera;
 	Player* m_player;
-	World* m_world;
+	std::vector<World*> m_worlds;
 
 private:
+	//Ignore warnings for being unable to generate a copy constructor for singleton class.
 	TheGame& operator= (const TheGame& other);
-	static const RGBA SKY_COLOR;
+	void UpdateDebug();
+	int m_currentlyRenderedWorldID;
 };

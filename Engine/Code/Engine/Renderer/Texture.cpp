@@ -15,7 +15,6 @@
 //---------------------------------------------------------------------------
 STATIC std::map<std::string, Texture*> Texture::s_textureRegistry;
 
-
 //---------------------------------------------------------------------------
 Texture::Texture( const std::string& imageFilePath )
 	: m_openglTextureID( 0 )
@@ -68,14 +67,13 @@ Texture::Texture( const std::string& imageFilePath )
 	glDisable(GL_TEXTURE_2D);
 }
 
-
-Texture::Texture(const std::string& imageFilePath, unsigned char* textureData, int numColorComponents, const Vector2Int& texelSize)
+//-----------------------------------------------------------------------------------
+Texture::Texture(unsigned char* textureData, int numColorComponents, const Vector2Int& texelSize)
 : m_openglTextureID(0)
 , m_texelSize(texelSize.x, texelSize.y)
 , m_imageData(textureData)
 {
 	int numComponents = numColorComponents; // Filled in for us to indicate how many color/alpha components the image had (e.g. 3=RGB, 4=RGBA)
-	int numComponentsRequested = 0; // don't care; we support 3 (RGB) or 4 (RGBA)
 
 	// Enable texturing
 	glEnable(GL_TEXTURE_2D);
@@ -119,12 +117,13 @@ Texture::Texture(const std::string& imageFilePath, unsigned char* textureData, i
 	glDisable(GL_TEXTURE_2D);
 }
 
-
+//-----------------------------------------------------------------------------------
 unsigned char* Texture::GetImageData()
 {
 	return m_imageData;
 }
 
+//-----------------------------------------------------------------------------------
 Texture::~Texture()
 {
 	stbi_image_free(m_imageData);
@@ -168,9 +167,10 @@ STATIC Texture* Texture::CreateOrGetTexture(const std::string& imageFilePath)
 	}
 }
 
+//-----------------------------------------------------------------------------------
 Texture* Texture::CreateTextureFromData(const std::string& textureName, unsigned char* textureData, int numComponents, const Vector2Int& texelSize)
 {
-	Texture* texture = new Texture(textureName, textureData, numComponents, texelSize);
+	Texture* texture = new Texture(textureData, numComponents, texelSize);
 	Texture::s_textureRegistry[textureName] = texture;
 	return texture;
 }

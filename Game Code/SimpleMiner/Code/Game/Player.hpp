@@ -12,11 +12,12 @@ class SpriteAnim;
 class Player
 {
 public:
+	//ENUMS//////////////////////////////////////////////////////////////////////////
 	enum class PhysicsMode
 	{
 		NOCLIP = 0,
 		FLYING,
-		NORMAL,
+		WALKING,
 		NUM_PHYSICS_MODES
 	};
 
@@ -36,10 +37,13 @@ public:
 	void UpdateFromKeyboard(float deltaTime);
 	void MoveFromKeyboard(float deltaTime);
 
-	void UpdatePhysics(float deltaTime, Vector3 &potentialOffset);
+	void UpdatePhysics(float deltaTime);
 
 	void SelectBlockFromInventory();
 	bool IsOnGround();
+
+	//CONSTANTS//////////////////////////////////////////////////////////////////////////
+	static const uchar NUM_INVENTORY_SLOTS = 9;
 	static const float PLAYER_HEIGHT;
 	static const float PLAYER_WIDTH;
 	static const float HALF_PLAYER_HEIGHT;
@@ -48,8 +52,9 @@ public:
 	static const float COLLISION_AVOIDANCE_PLAYER_WIDTH;
 	static const float COLLISION_AVOIDANCE_OFFSET;
 	static const float EYE_HEIGHT;
-	static const int NUM_INVENTORY_SLOTS = 9;
 	static const Vector3 EYE_OFFSET;
+
+	//MEMBER VARIABLES//////////////////////////////////////////////////////////////////////////
 	static float GRAVITY_CONSTANT;
 	static Vector3 ACCELERATION_DUE_TO_GRAVITY;
 
@@ -67,17 +72,17 @@ private:
 	Vector3 m_velocity;
 	Vector3 m_acceleration;
 	AABB3 m_boundingBox;
-	bool m_drawBoundingBox;
-	bool m_isDigging;
-	float m_breakingBlockTimer;
 	BlockInfo m_blockBeingBroken;
 	SpriteAnim* m_blockBreakAnimation;
 	SoundID m_uiSelectSound;
+	bool m_isDigging;
+	float m_breakingBlockTimer;
 
-	//Raycast Debug
+	//Raycast Debug variables
 	WorldPosition m_raycastImpact;
 	WorldPosition m_playerEyes;
 	WorldPosition m_target;
 	RGBA m_raycastColor;
+	Vector3Int m_summedCollision;
 	Texture* m_texture;
 };

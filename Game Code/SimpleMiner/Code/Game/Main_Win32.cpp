@@ -8,13 +8,13 @@
 #include "Engine/Renderer/TheRenderer.hpp"
 #include "Engine/Audio/Audio.hpp"
 #include "Engine/Input/InputSystem.hpp"
+#include "Engine/Input/Console.hpp"
 #include "Engine/Core/ProfilingUtils.h"
 #include "Game/TheApp.hpp"
 #include "Game/TheGame.hpp"
 
 //-----------------------------------------------------------------------------------------------
 #define UNUSED(x) (void)(x);
-
 
 //-----------------------------------------------------------------------------------------------
 const int OFFSET_FROM_WINDOWS_DESKTOP = 50;
@@ -31,13 +31,16 @@ bool g_isQuitting = false;
 HWND g_hWnd = nullptr;
 HDC g_displayDeviceContext = nullptr;
 HGLRC g_openGLRenderingContext = nullptr;
-const char* APP_NAME = "MoonScoop";
+const char* APP_NAME = "CloudyCraft";
 
 //Threading
 CRITICAL_SECTION g_chunkListsCriticalSection;
 CRITICAL_SECTION g_diskIOCriticalSection;
 
 ProfilingID g_frameTimeProfiling;
+ProfilingID g_updateProfiling;
+ProfilingID g_renderProfiling;
+extern ProfilingID g_temporaryProfiling;
 
 //-----------------------------------------------------------------------------------------------
 LRESULT CALLBACK WindowsMessageHandlingProcedure(HWND windowHandle, UINT wmMessageCode, WPARAM wParam, LPARAM lParam)
@@ -50,6 +53,10 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure(HWND windowHandle, UINT wmMessa
 	case WM_QUIT:
 		g_isQuitting = true;
 		return 0;
+
+	case WM_CHAR:
+		InputSystem::instance->SetLastPressedChar(asKey);
+		break;
 
 	case WM_KEYDOWN:
 		InputSystem::instance->SetKeyDownStatus(asKey, true);
@@ -96,7 +103,6 @@ LRESULT CALLBACK WindowsMessageHandlingProcedure(HWND windowHandle, UINT wmMessa
 
 	return DefWindowProc(windowHandle, wmMessageCode, wParam, lParam);
 }
-
 
 //-----------------------------------------------------------------------------------------------
 void CreateOpenGLWindow(HINSTANCE applicationInstanceHandle)
@@ -167,7 +173,6 @@ void CreateOpenGLWindow(HINSTANCE applicationInstanceHandle)
 	
 }
 
-
 //-----------------------------------------------------------------------------------------------
 void RunMessagePump()
 {
@@ -188,6 +193,7 @@ void RunMessagePump()
 //-----------------------------------------------------------------------------------------------
 void Update()
 {
+	StartTiming(g_updateProfiling);
 	static double s_timeLastFrameStarted = GetCurrentTimeSeconds();
 	double timeNow = GetCurrentTimeSeconds();
 	float deltaSeconds = (float)( timeNow - s_timeLastFrameStarted );
@@ -195,16 +201,20 @@ void Update()
 
 	InputSystem::instance->Update(deltaSeconds);
 	AudioSystem::instance->Update(deltaSeconds);
+	Console::instance->Update(deltaSeconds);
 	TheGame::instance->Update(deltaSeconds);
+	EndTiming(g_updateProfiling);
 }
 
 //-----------------------------------------------------------------------------------------------
 void Render()
 {
+	StartTiming(g_renderProfiling);
 	TheGame::instance->Render();
+	Console::instance->Render();
 	SwapBuffers(g_displayDeviceContext);
+	EndTiming(g_renderProfiling);
 }
-
 
 //-----------------------------------------------------------------------------------------------
 void RunFrame()
@@ -217,7 +227,6 @@ void RunFrame()
 	EndTiming(g_frameTimeProfiling);
 }
 
-
 //-----------------------------------------------------------------------------------------------
 void Initialize(HINSTANCE applicationInstanceHandle)
 {
@@ -228,11 +237,13 @@ void Initialize(HINSTANCE applicationInstanceHandle)
 	TheRenderer::instance = new TheRenderer();
 	AudioSystem::instance = new AudioSystem();
 	InputSystem::instance = new InputSystem(g_hWnd);
+	Console::instance = new Console();
 	TheApp::instance = new TheApp(VIEW_RIGHT, VIEW_TOP);
 	TheGame::instance = new TheGame();
 	g_frameTimeProfiling = RegisterProfilingChannel();
+	g_updateProfiling = RegisterProfilingChannel();
+	g_renderProfiling = RegisterProfilingChannel();
 }
-
 
 //-----------------------------------------------------------------------------------------------
 void Shutdown()
@@ -241,6 +252,8 @@ void Shutdown()
 	TheGame::instance = nullptr;
 	delete TheApp::instance;
 	TheApp::instance = nullptr;
+	delete Console::instance;
+	Console::instance = nullptr;
 	delete InputSystem::instance;
 	InputSystem::instance = nullptr;
 	delete AudioSystem::instance;
@@ -250,7 +263,6 @@ void Shutdown()
 	DeleteCriticalSection(&g_chunkListsCriticalSection);
 	DeleteCriticalSection(&g_diskIOCriticalSection);
 }
-
 
 //-----------------------------------------------------------------------------------------------
 int WINAPI WinMain(HINSTANCE applicationInstanceHandle, HINSTANCE, LPSTR commandLineString, int)
