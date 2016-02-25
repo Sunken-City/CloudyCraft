@@ -6,7 +6,14 @@
 class Texture
 {
 public:
+	enum class TextureFormat
+	{
+		RGBA8, //RGBA, 8 bits per channel
+		D24S8, //Depth 24, Stencil 8
+		NUM_FORMATS
+	};
 	//CONSTRUCTORS//////////////////////////////////////////////////////////////////////////
+	Texture(uint32_t width, uint32_t height, TextureFormat format);
 	~Texture();
 	static Texture* CreateOrGetTexture(const std::string& imageFilePath);
 	static Texture* CreateTextureFromData(const std::string& textureName, unsigned char* textureData, int numComponents, const Vector2Int& texelSize);
@@ -16,8 +23,9 @@ public:
 	unsigned char* GetImageData();
 
 	//MEMBER VARIABLES//////////////////////////////////////////////////////////////////////////
-	int m_openglTextureID;
+	unsigned int m_openglTextureID;
 	Vector2Int m_texelSize;
+
 private:
 	Texture(const std::string& imageFilePath);
 	Texture(unsigned char* textureData, int numColorComponents, const Vector2Int& texelSize);

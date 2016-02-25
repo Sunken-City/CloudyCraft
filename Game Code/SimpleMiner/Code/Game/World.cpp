@@ -447,7 +447,6 @@ bool World::GetFurthestUnneededChunk(ChunkCoords& out_chunkCoords)
 //-----------------------------------------------------------------------------------
 void World::SaveChunk(Chunk* chunkToUnload)
 {
-	return;
 	StartTiming(g_savingProfiling);
 	std::vector<uchar> chunkData;
 	chunkToUnload->GenerateSaveData(chunkData);

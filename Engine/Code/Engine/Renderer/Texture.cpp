@@ -6,6 +6,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <gl/gl.h>
+#include <gl/GLU.h>
+#include "Engine/Renderer/OpenGLExtensions.hpp"
+#include "Engine/Core/ErrorWarningAssert.hpp"
 
 #define STBI_HEADER_FILE_ONLY
 #include "ThirdParty/stb_image.c"
@@ -115,6 +118,43 @@ Texture::Texture(unsigned char* textureData, int numColorComponents, const Vecto
 		m_imageData);		// Location of the actual pixel data bytes/buffer
 
 	glDisable(GL_TEXTURE_2D);
+}
+
+Texture::Texture(uint32_t width, uint32_t height, TextureFormat format)
+{
+	glGenTextures(1, &m_openglTextureID);
+	GLenum bufferChannels = GL_RGBA;
+	GLenum bufferFormat = GL_UNSIGNED_INT_8_8_8_8;
+	GLenum internalFormat = GL_RGBA8;
+
+	if (format == TextureFormat::RGBA8)
+	{
+		//Nothing changes
+	}
+	else if (format == TextureFormat::D24S8)
+	{
+		bufferChannels = GL_DEPTH_STENCIL;
+		bufferFormat = GL_UNSIGNED_INT_24_8;
+		internalFormat = GL_DEPTH24_STENCIL8;
+	}
+	else
+	{
+		ERROR_AND_DIE("Unsupported texture enum");
+	}
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, m_openglTextureID);
+	glTexImage2D(GL_TEXTURE_2D,
+		0, //level - mipmaplevel, set to 0,
+		internalFormat, //How texture is stored in memory
+		width, height,
+		0, //border, again set to 0, we want not 0
+		bufferChannels, //channels used by image pass in
+		bufferFormat, //format of data of image passed in
+		NULL);	//no actual data passed in, defaults black/white
+
+	m_texelSize.x = width;
+	m_texelSize.y = height;
 }
 
 //-----------------------------------------------------------------------------------

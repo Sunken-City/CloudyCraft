@@ -140,6 +140,9 @@
     <ClCompile Include="Renderer\Light.cpp">
       <Filter>Renderer</Filter>
     </ClCompile>
+    <ClCompile Include="Renderer\Framebuffer.cpp">
+      <Filter>Renderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Math\Vector2.hpp">
@@ -257,6 +260,9 @@
       <Filter>Math</Filter>
     </ClInclude>
     <ClInclude Include="Renderer\Light.hpp">
+      <Filter>Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer\Framebuffer.hpp">
       <Filter>Renderer</Filter>
     </ClInclude>
   </ItemGroup>

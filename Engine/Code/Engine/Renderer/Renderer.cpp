@@ -18,6 +18,7 @@
 #include "Engine/Renderer/OpenGLExtensions.hpp"
 #include "Engine/Renderer/ShaderProgram.hpp"
 #include "Engine/Renderer/Material.hpp"
+#include "Engine/Renderer/Framebuffer.hpp"
 #include "Engine/Input/InputOutputUtils.hpp"
 #include "Engine/Core/StringUtils.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
@@ -41,6 +42,7 @@ static GLuint gDiffuseTex = NULL;
 Renderer::Renderer()
 	: m_defaultFont(BitmapFont::CreateOrGetFont("SquirrelFixedFont"))
 	, m_defaultTexture(Texture::CreateTextureFromData("PlainWhite", const_cast<uchar*>(plainWhiteTexel), 3, Vector2Int::ONE))
+	, m_fbo(nullptr)
 {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -836,3 +838,65 @@ void Renderer::DrawTexturedFace(const Face& face, const Vector2& texCoordMins, c
 	Renderer::instance->DrawVertexArray(vertexes, 4, QUADS, texture);
 }
 
+//-----------------------------------------------------------------------------------
+void Renderer::BindFramebuffer(Framebuffer* fbo)
+{
+	if (m_fbo == fbo)
+	{
+		return;
+	}
+
+	m_fbo = fbo;
+	if (fbo == nullptr)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, NULL);
+#pragma TODO("Make aspect not hard-coded!!!")
+		glViewport(0, 0, 1600, 900);
+
+	}
+	else
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo->m_fboHandle);
+		glViewport(0, 0, fbo->m_pixelWidth, fbo->m_pixelHeight);
+
+		GLenum renderTargets[32];
+		for (uint32_t i = 0; i < fbo->m_colorCount; ++i)
+		{
+			renderTargets[i] = GL_COLOR_ATTACHMENT0 + i;
+		}
+
+		glDrawBuffers(fbo->m_colorCount, //How many
+			renderTargets); //What do they render to?
+
+	}
+}
+
+//-----------------------------------------------------------------------------------
+//Is really only used for debug purposes
+void Renderer::FrameBufferCopyToBack(Framebuffer* fbo)
+{
+	if (fbo == nullptr)
+	{
+		return;
+	}
+
+	GLuint fboHandle = fbo->m_fboHandle;
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, fboHandle);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, NULL);
+
+	uint32_t readWidth = fbo->m_pixelWidth;
+	uint32_t readHeight = fbo->m_pixelHeight;
+
+#pragma TODO("Make aspect not hard-coded!!!")
+	uint32_t drawWidth = 1600;
+	uint32_t drawHeight = 900;
+
+	glBlitFramebuffer(0, 0, //Lower left corner pixel
+		readWidth, readHeight, //Top right corner pixel
+		0, 0, //lower left pixel of the read buffer
+		drawWidth, drawHeight, //top right pixel of read buffer
+		GL_COLOR_BUFFER_BIT,
+		GL_NEAREST);
+
+	GL_CHECK_ERROR();
+}

@@ -385,8 +385,9 @@ void Player::MoveFromKeyboard(float deltaTime)
 	const float BASE_MOVE_SPEED = 6.0f;
 	const float BASE_JUMP_HEIGHT = 5.5f;
 	const float MAX_HORIZONTAL_VELOCITY = 10.0f;
+	const float SHIFT_SPEED_MULTIPLIER = 4.0f;
 	float moveSpeed = 0.0f;
-	moveSpeed = (InputSystem::instance->IsKeyDown(InputSystem::ExtraKeys::SHIFT)) ? BASE_MOVE_SPEED * 8.0f : moveSpeed = BASE_MOVE_SPEED;
+	moveSpeed = (InputSystem::instance->IsKeyDown(InputSystem::ExtraKeys::SHIFT)) ? BASE_MOVE_SPEED * SHIFT_SPEED_MULTIPLIER : moveSpeed = BASE_MOVE_SPEED;
 
 	switch (m_physicsMode)
 	{

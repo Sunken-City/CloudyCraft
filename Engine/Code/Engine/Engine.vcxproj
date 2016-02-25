@@ -39,6 +39,7 @@
     <ClCompile Include="Renderer\BitmapFont.cpp" />
     <ClCompile Include="Renderer\DebugRenderer.cpp" />
     <ClCompile Include="Renderer\Face.cpp" />
+    <ClCompile Include="Renderer\Framebuffer.cpp" />
     <ClCompile Include="Renderer\Light.cpp" />
     <ClCompile Include="Renderer\Material.cpp" />
     <ClCompile Include="Renderer\Mesh.cpp" />
@@ -80,6 +81,7 @@
     <ClInclude Include="Renderer\BitmapFont.hpp" />
     <ClInclude Include="Renderer\DebugRenderer.hpp" />
     <ClInclude Include="Renderer\Face.hpp" />
+    <ClInclude Include="Renderer\Framebuffer.hpp" />
     <ClInclude Include="Renderer\Light.hpp" />
     <ClInclude Include="Renderer\Material.hpp" />
     <ClInclude Include="Renderer\Mesh.hpp" />

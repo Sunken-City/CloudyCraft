@@ -10,6 +10,7 @@
 #include "Engine/Input/InputSystem.hpp"
 #include "Engine/Input/Console.hpp"
 #include "Engine/Core/ProfilingUtils.h"
+#include "Engine/Core/StringUtils.hpp"
 #include "Game/TheApp.hpp"
 #include "Game/TheGame.hpp"
 
@@ -248,6 +249,13 @@ void Initialize(HINSTANCE applicationInstanceHandle)
 //-----------------------------------------------------------------------------------------------
 void Shutdown()
 {
+	//Just before we delete all the subsystems, go ahead and render a saving message so that players know we're quitting
+	TheRenderer::instance->SetOrtho(Vector2(0.0f, 0.0f), Vector2(1600, 900));
+	TheRenderer::instance->EnableAlphaBlending();
+	TheRenderer::instance->DrawText2D(Vector2(500.0f, 400.0f), Stringf("Saving and closing..."), 50.0f * 0.65f, 50.0f, RGBA::WHITE, false);
+	SwapBuffers(g_displayDeviceContext);
+
+	//Clean up all the engine subsystems.
 	delete TheGame::instance;
 	TheGame::instance = nullptr;
 	delete TheApp::instance;

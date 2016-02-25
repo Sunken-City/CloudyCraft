@@ -37,6 +37,7 @@ void TheGame::UpdateDebug()
 TheGame::TheGame()
 : m_blockSheet(new SpriteSheet("Data/Images/SimpleMinerAtlas.png", 16, 16))
 , m_currentlyRenderedWorldID(0)
+, m_worldSwapSFX(AudioSystem::instance->CreateOrGetSound("Data/SFX/swapDimensions.wav"))
 {
 	m_worlds.push_back(new World(0, RGBA(0xDDEEFF00), RGBA(0x4DC9FF00), new EarthGenerator()));			//BlueSky 0x4DC9FFFF     Vaporwave 0xFF819CFF
 	m_worlds.push_back(new World(1, RGBA(0xFDDA0E00), RGBA(0xC5540900), new SkylandsGenerator()));
@@ -91,6 +92,7 @@ void TheGame::Update(float deltaTime)
 	{
 		m_currentlyRenderedWorldID = m_currentlyRenderedWorldID == 0 ? 1 : 0;
 		m_player->m_world = m_worlds[m_currentlyRenderedWorldID];
+		AudioSystem::instance->PlaySound(m_worldSwapSFX);
 	}
 }
 

@@ -59,14 +59,14 @@ void EarthGenerator::GenerateChunk(Block* blockArray, Chunk* chunk)
 //-----------------------------------------------------------------------------------
 void SkylandsGenerator::GenerateChunk(Block* blockArray, Chunk* chunk)
 {
-	const float MIN_DENSITY = 20.0f;
+	const float MIN_DENSITY = 40.0f;
 	const float MAX_DENSITY = 70.0f;
 	const float MIN_THICKNESS_BELOW = 10.0f;
 	const float MAX_THICKNESS_BELOW = 30.0f;
 	const float MIN_THICKNESS_ABOVE = 0.0f;
 	const float MAX_THICKNESS_ABOVE = 8.0f;
 	const float VARIABLE_THICKNESS_BELOW = MAX_THICKNESS_BELOW - MIN_THICKNESS_BELOW;
-	const float DENSITY_GRID_SIZE = 40.0f;
+	const float DENSITY_GRID_SIZE = 60.0f;
 	const float DENSITY_NUM_OCTAVES = 2;
 	const float DENSITY_PERSISTENCE = 0.30f;
 

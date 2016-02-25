@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include "Engine/Audio/Audio.hpp"
 
 class SpriteSheet;
 class RGBA;
@@ -28,6 +29,7 @@ public:
 	Camera3D* m_playerCamera;
 	Player* m_player;
 	std::vector<World*> m_worlds;
+	SoundID m_worldSwapSFX;
 
 private:
 	//Ignore warnings for being unable to generate a copy constructor for singleton class.

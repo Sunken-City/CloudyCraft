@@ -55,4 +55,12 @@ extern PFNGLDELETESAMPLERSPROC	glDeleteSamplers;
 extern PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
 extern PFNGLACTIVETEXTUREPROC glActiveTexture;
 
+extern PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
+extern PFNGLBINDFRAMEBUFFERPROC glBindFramebuffer;
+extern PFNGLFRAMEBUFFERTEXTUREPROC glFramebufferTexture;
+extern PFNGLCHECKFRAMEBUFFERSTATUSPROC glCheckFramebufferStatus;
+extern PFNGLDELETEFRAMEBUFFERSPROC glDeleteFramebuffers;
+extern PFNGLDRAWBUFFERSPROC glDrawBuffers;
+extern PFNGLBLITFRAMEBUFFERPROC glBlitFramebuffer;
+
 void hookUpOpenGLPointers();
