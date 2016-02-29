@@ -76,6 +76,19 @@ BlockInfo BlockInfo::GetNeighbor(Direction direction) const
 	}
 }
 
+Direction BlockInfo::GetFaceDirectionFromNormal(const Vector3Int& normal) const
+{
+	if (normal.x != 0)
+	{
+		return normal.x == 1 ? Direction::EAST : Direction::WEST;
+	}
+	else if (normal.y != 0)
+	{
+		return normal.y == 1 ? Direction::NORTH : Direction::SOUTH;
+	}
+	return normal.z == 1 ? Direction::ABOVE : Direction::BELOW;
+}
+
 //-----------------------------------------------------------------------------------
 void BlockInfo::SetDirtyFlagAndAddToDirtyList(const BlockInfo& info)
 {

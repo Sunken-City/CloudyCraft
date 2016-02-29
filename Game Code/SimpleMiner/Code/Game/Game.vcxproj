@@ -153,6 +153,7 @@
     <ClCompile Include="Main_Win32.cpp" />
     <ClCompile Include="ParticleSystem.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="Portal.cpp" />
     <ClCompile Include="TheApp.cpp" />
     <ClCompile Include="TheGame.cpp" />
     <ClCompile Include="World.cpp" />
@@ -173,6 +174,7 @@
     <ClInclude Include="Generator.hpp" />
     <ClInclude Include="ParticleSystem.hpp" />
     <ClInclude Include="Player.hpp" />
+    <ClInclude Include="Portal.hpp" />
     <ClInclude Include="TheApp.hpp" />
     <ClInclude Include="TheGame.hpp" />
     <ClInclude Include="World.hpp" />

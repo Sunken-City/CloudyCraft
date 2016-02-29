@@ -50,6 +50,9 @@
     <ClCompile Include="Generator.cpp">
       <Filter>General</Filter>
     </ClCompile>
+    <ClCompile Include="Portal.cpp">
+      <Filter>General</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TheGame.hpp">
@@ -89,6 +92,9 @@
       <Filter>General</Filter>
     </ClInclude>
     <ClInclude Include="Generator.hpp">
+      <Filter>General</Filter>
+    </ClInclude>
+    <ClInclude Include="Portal.hpp">
       <Filter>General</Filter>
     </ClInclude>
   </ItemGroup>

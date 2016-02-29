@@ -1,4 +1,5 @@
 #include "Game/Chunk.hpp"
+#include "Game/Portal.hpp"
 
 //-----------------------------------------------------------------------------------
 inline bool BlockInfo::IsOnEast() const
@@ -43,7 +44,15 @@ inline BlockInfo BlockInfo::GetAbove() const
 	{
 		return INVALID_BLOCK;
 	}
-	return BlockInfo(m_chunk, m_index + Chunk::BLOCKS_PER_LAYER);
+	BlockInfo candidateBlock(m_chunk, m_index + Chunk::BLOCKS_PER_LAYER);
+	if (candidateBlock.GetBlock()->HasBelowPortal())
+	{
+		return Portal::GetBlockInLinkedDimension(candidateBlock);
+	}
+	else
+	{
+		return candidateBlock;
+	}
 }
 
 //-----------------------------------------------------------------------------------
@@ -53,7 +62,15 @@ inline BlockInfo BlockInfo::GetBelow() const
 	{
 		return INVALID_BLOCK;
 	}
-	return BlockInfo(m_chunk, m_index - Chunk::BLOCKS_PER_LAYER);
+	BlockInfo candidateBlock(m_chunk, m_index - Chunk::BLOCKS_PER_LAYER);
+	if (candidateBlock.GetBlock()->HasAbovePortal())
+	{
+		return Portal::GetBlockInLinkedDimension(candidateBlock);
+	}
+	else
+	{
+		return candidateBlock;
+	}
 }
 
 //-----------------------------------------------------------------------------------
@@ -67,7 +84,15 @@ inline BlockInfo BlockInfo::GetNorth() const
 		}
 		return INVALID_BLOCK;
 	}
-	return BlockInfo(m_chunk, m_index + Chunk::BLOCKS_WIDE_Y);
+	BlockInfo candidateBlock(m_chunk, m_index + Chunk::BLOCKS_WIDE_Y);
+	if (candidateBlock.GetBlock()->HasSouthPortal())
+	{
+		return Portal::GetBlockInLinkedDimension(candidateBlock);
+	}
+	else
+	{
+		return candidateBlock;
+	}
 }
 
 //-----------------------------------------------------------------------------------
@@ -81,7 +106,15 @@ inline BlockInfo BlockInfo::GetSouth() const
 		}
 		return INVALID_BLOCK;
 	}
-	return BlockInfo(m_chunk, m_index - Chunk::BLOCKS_WIDE_Y);
+	BlockInfo candidateBlock(m_chunk, m_index - Chunk::BLOCKS_WIDE_Y);
+	if (candidateBlock.GetBlock()->HasNorthPortal())
+	{
+		return Portal::GetBlockInLinkedDimension(candidateBlock);
+	}
+	else
+	{
+		return candidateBlock;
+	}
 }
 
 //-----------------------------------------------------------------------------------
@@ -95,7 +128,15 @@ inline BlockInfo BlockInfo::GetEast() const
 		}
 		return INVALID_BLOCK;
 	}
-	return BlockInfo(m_chunk, m_index + 1);
+	BlockInfo candidateBlock(m_chunk, m_index + 1);
+	if (candidateBlock.GetBlock()->HasWestPortal())
+	{
+		return Portal::GetBlockInLinkedDimension(candidateBlock);
+	}
+	else
+	{
+		return candidateBlock;
+	}
 }
 
 //-----------------------------------------------------------------------------------
@@ -109,5 +150,13 @@ inline BlockInfo BlockInfo::GetWest() const
 		}
 		return INVALID_BLOCK;
 	}
-	return BlockInfo(m_chunk, m_index - 1);
+	BlockInfo candidateBlock(m_chunk, m_index - 1); 
+	if (candidateBlock.GetBlock()->HasEastPortal())
+	{
+		return Portal::GetBlockInLinkedDimension(candidateBlock);
+	}
+	else
+	{
+		return candidateBlock;
+	}
 }

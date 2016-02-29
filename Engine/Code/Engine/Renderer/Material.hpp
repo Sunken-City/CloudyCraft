@@ -3,6 +3,7 @@
 #include "Engine/Renderer/ShaderProgram.hpp"
 
 class Matrix4x4;
+class Texture;
 
 //STRUCTS//////////////////////////////////////////////////////////////////////////
 //--------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -59,7 +60,9 @@ public:
 	void SetMatrices(const Matrix4x4& model, const Matrix4x4& view, const Matrix4x4& projection);
 	void BindAvailableTextures() const;
 	void SetDiffuseTexture(const std::string& diffusePath);
+	void SetDiffuseTexture(Texture* texture);
 	void SetNormalTexture(const std::string& normalPath);
+	void SetNormalTexture(Texture* texture);
 	void SetEmissiveTexture(const std::string& emissivePath);
 	void SetNoiseTexture(const std::string& noisePath);
 	void SetTexture(const char* texName, unsigned int textureObjectID);
@@ -69,6 +72,10 @@ public:
 	inline void SetVec3Uniform(const char* name, const Vector3& value) { m_shaderProgram->SetVec3Uniform(name, value); };
 	inline void SetFloatUniform(const char* name, float value) { m_shaderProgram->SetFloatUniform(name, value); };
 	inline void SetIntUniform(const char* name, int value) { m_shaderProgram->SetIntUniform(name, value); };
+	inline void SetVec4Uniform(const char* name, const Vector4& value, unsigned int arrayIndex) { m_shaderProgram->SetVec4Uniform(name, value, arrayIndex); };
+	inline void SetVec3Uniform(const char* name, const Vector3& value, unsigned int arrayIndex) { m_shaderProgram->SetVec3Uniform(name, value, arrayIndex); };
+	inline void SetFloatUniform(const char* name, float value, unsigned int arrayIndex) { m_shaderProgram->SetFloatUniform(name, value, arrayIndex); };
+	inline void SetIntUniform(const char* name, int value, unsigned int arrayIndex) { m_shaderProgram->SetIntUniform(name, value, arrayIndex); };
 	
 	//MEMBER VARIABLES//////////////////////////////////////////////////////////////////////////
 	ShaderProgram* m_shaderProgram;

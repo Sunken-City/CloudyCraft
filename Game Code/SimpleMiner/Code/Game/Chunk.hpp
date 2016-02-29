@@ -29,13 +29,10 @@ public:
 	void FlagEdgesAsDirtyLighting(Direction dir);
 
 	//FACE VISIBILITY//////////////////////////////////////////////////////////////////////////
-	void ActivateVisibleFaces();
 	void SetEdgeBits();
 	void DirtyAndAddToDirtyList();
 	void SetHighPriorityChunkDirtyAndAddToDirtyList();
-	void UpdateChunkVisibleFlags(Direction dir);
 	void GenerateVertexArray();
-	void PushBackVisibleSides(int i, Block &currentBlock, std::vector<Vertex_PCT> &m_vertexArray, const float blockSize);
 
 	//ACCESSORS AND CONVERSIONS//////////////////////////////////////////////////////////////////////////
 	inline Block* GetBlock(LocalIndex index);

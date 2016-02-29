@@ -4,6 +4,7 @@
 #include "Game/Camera3D.hpp"
 #include "Game/Player.hpp"
 #include "Game/Generator.hpp"
+#include "Game/Portal.hpp"
 #include "Engine/Input/InputOutputUtils.hpp"
 #include "Engine/Renderer/Face.hpp"
 #include "Engine/Renderer/Vertex.hpp"
@@ -243,55 +244,82 @@ void World::PlaceBlock()
 {
 	Player* player = TheGame::instance->m_player;
 	Chunk* currentChunk = m_activeChunks[GetChunkCoordsFromWorldCoords(player->m_raycastResult.impactTileCoords)];
+	if (InputSystem::instance->IsMouseButtonDown(2))
+	{
+		BlockInfo highlightedBlockInfo = GetBlockInfoFromWorldCoords(player->m_raycastResult.impactTileCoords);
+		Direction selectedFace = BlockInfo::GetFaceDirectionFromNormal(player->m_raycastResult.impactSurfaceNormal);
+
+		WorldCoords blockToPlace = player->m_raycastResult.impactTileCoords + player->m_raycastResult.impactSurfaceNormal;
+		BlockInfo extrudedBlockInfo = GetBlockInfoFromWorldCoords(blockToPlace);
+		if (highlightedBlockInfo.GetBlock()->IsPortal(selectedFace))
+		{
+			highlightedBlockInfo.GetBlock()->RemovePortal(selectedFace);
+			Portal::GetBlockInLinkedDimension(extrudedBlockInfo).GetBlock()->RemovePortal(BlockInfo::s_oppositeDirections[selectedFace]);
+			extrudedBlockInfo.GetBlock()->RemovePortal(BlockInfo::s_oppositeDirections[selectedFace]);
+			Portal::GetBlockInLinkedDimension(highlightedBlockInfo).GetBlock()->RemovePortal(selectedFace);
+		}
+		else
+		{
+			highlightedBlockInfo.GetBlock()->SetPortal(selectedFace);
+			Portal::GetBlockInLinkedDimension(extrudedBlockInfo).GetBlock()->SetPortal(BlockInfo::s_oppositeDirections[selectedFace]);
+			extrudedBlockInfo.GetBlock()->SetPortal(BlockInfo::s_oppositeDirections[selectedFace]);
+			Portal::GetBlockInLinkedDimension(highlightedBlockInfo).GetBlock()->SetPortal(selectedFace);
+		}
+		currentChunk->SetHighPriorityChunkDirtyAndAddToDirtyList();
+		BlockInfo::SetDirtyFlagAndAddToDirtyList(highlightedBlockInfo);
+		return;
+	}
 	WorldCoords blockToPlace = player->m_raycastResult.impactTileCoords + player->m_raycastResult.impactSurfaceNormal;
-	BlockInfo info = GetBlockInfoFromWorldCoords(blockToPlace);
-	Block* block = info.GetBlock();
-	block->m_type = player->m_heldBlock;
+	BlockInfo highlightedBlockInfo = GetBlockInfoFromWorldCoords(blockToPlace);
 	BlockDefinition* definition = BlockDefinition::GetDefinition(player->m_heldBlock);
+	Block* block = highlightedBlockInfo.GetBlock();
+
+	//Place the block down
+	block->m_type = player->m_heldBlock;
 	AudioSystem::instance->PlaySound(definition->m_placeSound);
 	currentChunk->SetHighPriorityChunkDirtyAndAddToDirtyList();
-	BlockInfo::SetDirtyFlagAndAddToDirtyList(info);
+	BlockInfo::SetDirtyFlagAndAddToDirtyList(highlightedBlockInfo);
 	if (block->IsEdgeBlock())
 	{
-		BlockInfo east = info.GetEast();
-		BlockInfo west = info.GetWest();
-		BlockInfo north = info.GetNorth();
-		BlockInfo south = info.GetSouth();
-		if (info.IsOnEast() && east.m_chunk)
+		BlockInfo east = highlightedBlockInfo.GetEast();
+		BlockInfo west = highlightedBlockInfo.GetWest();
+		BlockInfo north = highlightedBlockInfo.GetNorth();
+		BlockInfo south = highlightedBlockInfo.GetSouth();
+		if (highlightedBlockInfo.IsOnEast() && east.m_chunk)
 		{
 			east.m_chunk->DirtyAndAddToDirtyList();
 		}
-		else if (info.IsOnWest() && west.m_chunk)
+		else if (highlightedBlockInfo.IsOnWest() && west.m_chunk)
 		{
 			west.m_chunk->DirtyAndAddToDirtyList();
 		}
 
-		if (info.IsOnNorth() && north.m_chunk)
+		if (highlightedBlockInfo.IsOnNorth() && north.m_chunk)
 		{
 			north.m_chunk->DirtyAndAddToDirtyList();
 		}
-		else if (info.IsOnSouth() && south.m_chunk)
+		else if (highlightedBlockInfo.IsOnSouth() && south.m_chunk)
 		{
 			south.m_chunk->DirtyAndAddToDirtyList();
 		}
 	}
-	if (info.GetBlock()->IsSky())
+	if (highlightedBlockInfo.GetBlock()->IsSky())
 	{
 		block->SetSky(false);
-		info = info.GetBelow();
-		while (info.m_index != BlockInfo::INVALID_INDEX)
+		highlightedBlockInfo = highlightedBlockInfo.GetBelow();
+		while (highlightedBlockInfo.m_index != BlockInfo::INVALID_INDEX)
 		{
-			Block* currentBlock = info.GetBlock();
+			Block* currentBlock = highlightedBlockInfo.GetBlock();
 			uchar blockType = currentBlock->m_type;
 			if (BlockDefinition::GetDefinition(blockType)->m_isOpaque)
 			{
-				info = BlockInfo::INVALID_BLOCK;
+				highlightedBlockInfo = BlockInfo::INVALID_BLOCK;
 			}
 			else
 			{
 				currentBlock->SetSky(false);
-				BlockInfo::SetDirtyFlagAndAddToDirtyList(info);
-				info = info.GetBelow();
+				BlockInfo::SetDirtyFlagAndAddToDirtyList(highlightedBlockInfo);
+				highlightedBlockInfo = highlightedBlockInfo.GetBelow();
 			}
 		}
 	}

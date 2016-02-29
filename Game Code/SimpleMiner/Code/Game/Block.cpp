@@ -91,61 +91,85 @@ Face Block::GetFace(const Vector3Int& bottomLeftCorner, const Vector3Int& faceNo
 }
 
 //-----------------------------------------------------------------------------------
-void Block::SetVisible(Direction visibleFace)
+bool Block::IsPortal(Direction portalFace)
 {
-	uchar bitmaskFaceVisible = 0x00;
-	switch (visibleFace)
+	uchar bitmaskPortalFace = 0x00;
+	switch (portalFace)
 	{
 	case Direction::ABOVE:
-		bitmaskFaceVisible = BITMASK_ABOVE_VISIBLE;
+		return (m_portalFlags & PORTAL_ABOVE_BIT) != 0;
+	case Direction::BELOW:
+		return (m_portalFlags & PORTAL_BELOW_BIT) != 0;
+	case Direction::NORTH:
+		return (m_portalFlags & PORTAL_NORTH_BIT) != 0;
+	case Direction::SOUTH:
+		return (m_portalFlags & PORTAL_SOUTH_BIT) != 0;
+	case Direction::EAST:
+		return (m_portalFlags & PORTAL_EAST_BIT) != 0;
+	case Direction::WEST:
+		return (m_portalFlags & PORTAL_WEST_BIT) != 0;
+	default:
+		return false;
+	}
+}
+
+//-----------------------------------------------------------------------------------
+void Block::SetPortal(Direction portalFace)
+{
+	uchar bitmaskPortalFace = 0x00;
+	switch (portalFace)
+	{
+	case Direction::ABOVE:
+		bitmaskPortalFace = BITMASK_ABOVE_HAS_PORTAL;
 		break;
 	case Direction::BELOW:
-		bitmaskFaceVisible = BITMASK_BELOW_VISIBLE;
+		bitmaskPortalFace = BITMASK_BELOW_HAS_PORTAL;
 		break;
 	case Direction::NORTH:
-		bitmaskFaceVisible = BITMASK_NORTH_VISIBLE;
+		bitmaskPortalFace = BITMASK_NORTH_HAS_PORTAL;
 		break;
 	case Direction::SOUTH:
-		bitmaskFaceVisible = BITMASK_SOUTH_VISIBLE;
+		bitmaskPortalFace = BITMASK_SOUTH_HAS_PORTAL;
 		break;
 	case Direction::EAST:
-		bitmaskFaceVisible = BITMASK_EAST_VISIBLE;
+		bitmaskPortalFace = BITMASK_EAST_HAS_PORTAL;
 		break;
 	case Direction::WEST:
-		bitmaskFaceVisible = BITMASK_WEST_VISIBLE;
+		bitmaskPortalFace = BITMASK_WEST_HAS_PORTAL;
 		break;
 	default:
 		break;
 	}
-	m_hsrFlags &= ~bitmaskFaceVisible;
-	m_hsrFlags |= bitmaskFaceVisible;
+	m_portalFlags &= ~bitmaskPortalFace;
+	m_portalFlags |= bitmaskPortalFace;
 }
 
-void Block::SetHidden(Direction hiddenFace)
+//-----------------------------------------------------------------------------------
+void Block::RemovePortal(Direction hiddenFace)
 {
-	uchar bitmaskFaceVisible = 0x00;
+	uchar bitmaskPortalFace = 0x00;
 	switch (hiddenFace)
 	{
 	case Direction::ABOVE:
-		bitmaskFaceVisible = BITMASK_ABOVE_VISIBLE;
+		bitmaskPortalFace = BITMASK_ABOVE_HAS_PORTAL;
 		break;
 	case Direction::BELOW:
-		bitmaskFaceVisible = BITMASK_BELOW_VISIBLE;
+		bitmaskPortalFace = BITMASK_BELOW_HAS_PORTAL;
 		break;
 	case Direction::NORTH:
-		bitmaskFaceVisible = BITMASK_NORTH_VISIBLE;
+		bitmaskPortalFace = BITMASK_NORTH_HAS_PORTAL;
 		break;
 	case Direction::SOUTH:
-		bitmaskFaceVisible = BITMASK_SOUTH_VISIBLE;
+		bitmaskPortalFace = BITMASK_SOUTH_HAS_PORTAL;
 		break;
 	case Direction::EAST:
-		bitmaskFaceVisible = BITMASK_EAST_VISIBLE;
+		bitmaskPortalFace = BITMASK_EAST_HAS_PORTAL;
 		break;
 	case Direction::WEST:
-		bitmaskFaceVisible = BITMASK_WEST_VISIBLE;
+		bitmaskPortalFace = BITMASK_WEST_HAS_PORTAL;
 		break;
 	default:
 		break;
 	}
-	m_hsrFlags &= ~bitmaskFaceVisible;
+	m_portalFlags &= ~bitmaskPortalFace;
 }

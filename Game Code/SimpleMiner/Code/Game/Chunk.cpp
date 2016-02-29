@@ -151,28 +151,6 @@ void Chunk::CalculateSkyLighting()
 }
 
 //-----------------------------------------------------------------------------------
-void Chunk::ActivateVisibleFaces()
-{
-	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
-	{
-		BlockInfo currentBlock = BlockInfo(this, i);
-		for (int j = 0; j < NUM_DIRECTIONS; j++)
-		{
-			Direction direction = (Direction)j;
-			Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
-			if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
-			{
-				currentBlock.GetBlock()->SetVisible(direction);
-			}
-			else
-			{
-				currentBlock.GetBlock()->SetHidden(direction);
-			}
-		}
-	}
-}
-
-//-----------------------------------------------------------------------------------
 WorldCoords Chunk::GetWorldCoordsForBlockIndex(LocalIndex index) const
 {
 	LocalCoords coords = GetLocalCoordsFromBlockIndex(index);
@@ -289,7 +267,7 @@ void Chunk::GenerateVertexArray()
 		Block* belowBlock = GetBelow(i);
 		if (belowBlock && !BlockDefinition::GetDefinition(belowBlock->m_type)->m_isOpaque)
 		{
-			vertex.color = RGBA(belowBlock->GetDampedLightValue(0x33));
+			vertex.color = currentBlock.HasBelowPortal() ? RGBA::VAPORWAVE : RGBA(belowBlock->GetDampedLightValue(0x33));
 			vertex.texCoords = bottomTex.mins;
 			vertex.pos = Vector3(coords.x, coords.y, coords.z);
 			tempVertexArray.push_back(vertex);
@@ -307,7 +285,7 @@ void Chunk::GenerateVertexArray()
 		Block* aboveBlock = GetAbove(i);
 		if (aboveBlock && !BlockDefinition::GetDefinition(aboveBlock->m_type)->m_isOpaque)
 		{
-			vertex.color = RGBA(aboveBlock->GetLightValue());
+			vertex.color = currentBlock.HasAbovePortal() ? RGBA::VAPORWAVE : RGBA(aboveBlock->GetLightValue());
 			vertex.texCoords = Vector2(topTex.mins.x, topTex.mins.y);
 			vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
 			tempVertexArray.push_back(vertex);
@@ -325,7 +303,7 @@ void Chunk::GenerateVertexArray()
 		Block* westBlock = GetWest(i);
 		if (westBlock && !BlockDefinition::GetDefinition(westBlock->m_type)->m_isOpaque)
 		{
-			vertex.color = RGBA(westBlock->GetDampedLightValue(0x22));
+			vertex.color = currentBlock.HasWestPortal() ? RGBA::VAPORWAVE : RGBA(westBlock->GetDampedLightValue(0x22));
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
 			tempVertexArray.push_back(vertex);
@@ -343,7 +321,7 @@ void Chunk::GenerateVertexArray()
 		Block* eastBlock = GetEast(i);
 		if (eastBlock && !BlockDefinition::GetDefinition(eastBlock->m_type)->m_isOpaque)
 		{
-			vertex.color = RGBA(eastBlock->GetDampedLightValue(0x22));
+			vertex.color = currentBlock.HasEastPortal() ? RGBA::VAPORWAVE : RGBA(eastBlock->GetDampedLightValue(0x22));
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
 			tempVertexArray.push_back(vertex);
@@ -361,7 +339,7 @@ void Chunk::GenerateVertexArray()
 		Block* southBlock = GetSouth(i);
 		if (southBlock && !BlockDefinition::GetDefinition(southBlock->m_type)->m_isOpaque)
 		{
-			vertex.color = RGBA(southBlock->GetDampedLightValue(0x11));
+			vertex.color = currentBlock.HasSouthPortal() ? RGBA::VAPORWAVE : RGBA(southBlock->GetDampedLightValue(0x11));
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x, coords.y, coords.z);
 			tempVertexArray.push_back(vertex);
@@ -379,7 +357,7 @@ void Chunk::GenerateVertexArray()
 		Block* northBlock = GetNorth(i);
 		if (northBlock && !BlockDefinition::GetDefinition(northBlock->m_type)->m_isOpaque)
 		{
-			vertex.color = RGBA(northBlock->GetDampedLightValue(0x11));
+			vertex.color = currentBlock.HasNorthPortal() ? RGBA::VAPORWAVE : RGBA(northBlock->GetDampedLightValue(0x11));
 			vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
 			vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
 			tempVertexArray.push_back(vertex);
@@ -553,150 +531,10 @@ void Chunk::GenerateVertexArray()
 		}
 	}
 
-	//HSR using bitflags is currently a work-in-progress.
-// 	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
-// 	{
-// 		Block currentBlock = m_blocks[i];
-// 		if (!currentBlock.GetDefinition()->m_isOpaque)
-// 		{
-// 			continue;
-// 		}
-// 		PushBackVisibleSides(i, currentBlock, tempVertexArray, blockSize);
-// 	}
-// 
-// 	//Opaque drawing
-// 	for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
-// 	{
-// 		Block currentBlock = m_blocks[i];
-// 		if (currentBlock.GetDefinition()->m_isOpaque || currentBlock.m_type == BlockType::AIR)
-// 		{
-// 			continue;
-// 		}
-// 		PushBackVisibleSides(i, currentBlock, tempVertexArray, blockSize);
-// 	}
 	m_numVerts = tempVertexArray.size();
 	TheRenderer::instance->BindAndBufferVBOData(m_vboID, tempVertexArray.data(), m_numVerts);
 	m_isDirty = false;
 	EndTiming(g_vaBuildingProfiling);
-}
-
-void Chunk::PushBackVisibleSides(int currentBlockIndex, Block &currentBlock, std::vector<Vertex_PCT> &m_vertexArray, const float blockSize)
-{
-	WorldPosition coords = GetWorldMinsForBlockIndex(currentBlockIndex);
-	Vertex_PCT vertex;
-	vertex.color = RGBA(0x000000FF);
-	BlockDefinition* currentDefinition = BlockDefinition::GetDefinition(currentBlock.m_type);
-	AABB2 topTex = currentDefinition->GetTopIndex();
-	AABB2 sideTex = currentDefinition->GetSideIndex();
-	AABB2 bottomTex = currentDefinition->GetBottomIndex();
-
-	if (currentBlock.IsBelowVisible())
-	{
-		Block* belowBlock = GetBelow(currentBlockIndex);
-		vertex.color = RGBA(belowBlock->GetDampedLightValue(0x33));
-		vertex.texCoords = bottomTex.mins;
-		vertex.pos = Vector3(coords.x, coords.y, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(bottomTex.maxs.x, bottomTex.mins.y);
-		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = bottomTex.maxs;
-		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(bottomTex.mins.x, bottomTex.maxs.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
-		m_vertexArray.push_back(vertex);
-	}
-
-	if (currentBlock.IsAboveVisible())
-	{
-		Block* aboveBlock = GetAbove(currentBlockIndex);
-		vertex.color = RGBA(aboveBlock->GetLightValue());
-		vertex.texCoords = Vector2(topTex.mins.x, topTex.mins.y);
-		vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(topTex.maxs.x, topTex.mins.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(topTex.maxs.x, topTex.maxs.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(topTex.mins.x, topTex.maxs.y);
-		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-	}
-
-	if (currentBlock.IsWestVisible())
-	{
-		Block* westBlock = GetWest(currentBlockIndex);
-		vertex.color = RGBA(westBlock->GetDampedLightValue(0x22));
-		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
-		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
-		vertex.pos = Vector3(coords.x, coords.y, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
-		vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
-		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-	}
-
-	if (currentBlock.IsEastVisible())
-	{
-		Block* eastBlock = GetEast(currentBlockIndex);
-		vertex.color = RGBA(eastBlock->GetDampedLightValue(0x22));
-		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-	}
-
-	if (currentBlock.IsSouthVisible())
-	{
-		Block* southBlock = GetSouth(currentBlockIndex);
-		vertex.color = RGBA(southBlock->GetDampedLightValue(0x11));
-		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
-		vertex.pos = Vector3(coords.x, coords.y, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
-		vertex.pos = Vector3(coords.x, coords.y, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-	}
-
-	if (currentBlock.IsNorthVisible())
-	{
-		Block* northBlock = GetNorth(currentBlockIndex);
-		vertex.color = RGBA(northBlock->GetDampedLightValue(0x11));
-		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.mins.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.mins.y);
-		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.maxs.x, sideTex.maxs.y);
-		vertex.pos = Vector3(coords.x, coords.y + blockSize, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-		vertex.texCoords = Vector2(sideTex.mins.x, sideTex.maxs.y);
-		vertex.pos = Vector3(coords.x + blockSize, coords.y + blockSize, coords.z + blockSize);
-		m_vertexArray.push_back(vertex);
-	}
 }
 
 //-----------------------------------------------------------------------------------
@@ -799,93 +637,6 @@ void Chunk::SetEdgeBits()
 		{
 			GetBlock(index + j)->SetEdgeBlock(true);
 		}
-	}
-}
-
-//-----------------------------------------------------------------------------------
-void Chunk::UpdateChunkVisibleFlags(Direction direction)
-{
-	//Directions are relative to the top layer of the chunk, viewed from above.
-	const int TOP_LEFT_INDEX = BLOCKS_PER_CHUNK - BLOCKS_WIDE_X;
-	const int TOP_RIGHT_INDEX = BLOCKS_PER_CHUNK - 1;
-	const int BOTTOM_RIGHT_INDEX_MINUS_1 = BLOCKS_PER_CHUNK - BLOCKS_PER_LAYER + (BLOCKS_WIDE_X - 2);
-	const int TOP_RIGHT_INDEX_MINUS_1 = BLOCKS_PER_CHUNK - 2;
-	switch (direction)
-	{
-	case NORTH:
-		//North Side
-		for (int index = BLOCKS_PER_LAYER - BLOCKS_WIDE_X + 1; index < TOP_RIGHT_INDEX_MINUS_1; index += BLOCKS_PER_LAYER)
-		{
-			const int BLOCKS_PER_ITERATION = BLOCKS_WIDE_X - 2;
-			for (int j = 0; j < BLOCKS_PER_ITERATION; j++)
-			{
-				BlockInfo currentBlock = BlockInfo(this, index + j);
-				Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
-				if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
-				{
-					currentBlock.GetBlock()->SetVisible(direction);
-				}
-				else
-				{
-					currentBlock.GetBlock()->SetHidden(direction);
-				}
-			}
-		}
-		break;
-	case SOUTH:
-		//South Side
-		for (int index = 1; index < BOTTOM_RIGHT_INDEX_MINUS_1; index += BLOCKS_PER_LAYER)
-		{
-			const int BLOCKS_PER_ITERATION = BLOCKS_WIDE_X - 2;
-			for (int j = 0; j < BLOCKS_PER_ITERATION; j++)
-			{
-				BlockInfo currentBlock = BlockInfo(this, index + j);
-				Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
-				if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
-				{
-					currentBlock.GetBlock()->SetVisible(direction);
-				}
-				else
-				{
-					currentBlock.GetBlock()->SetHidden(direction);
-				}
-			}
-		}
-		break;
-	case EAST:
-		//East Side
-		for (int index = BLOCKS_WIDE_X - 1; index < TOP_RIGHT_INDEX; index += BLOCKS_WIDE_Y)
-		{
-			BlockInfo currentBlock = BlockInfo(this, index);
-			Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
-			if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
-			{
-				currentBlock.GetBlock()->SetVisible(direction);
-			}
-			else
-			{
-				currentBlock.GetBlock()->SetHidden(direction);
-			}
-		}
-		break;
-	case WEST:
-		//West Side
-		for (int index = 0; index < TOP_LEFT_INDEX; index += BLOCKS_WIDE_Y)
-		{
-			BlockInfo currentBlock = BlockInfo(this, index);
-			Block* neighborBlock = currentBlock.GetNeighbor(direction).GetBlock();
-			if (neighborBlock && !neighborBlock->GetDefinition()->m_isOpaque)
-			{
-				currentBlock.GetBlock()->SetVisible(direction);
-			}
-			else
-			{
-				currentBlock.GetBlock()->SetHidden(direction);
-			}
-		}
-		break;
-	default:
-		break;
 	}
 }
 

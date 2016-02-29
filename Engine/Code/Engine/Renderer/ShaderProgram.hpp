@@ -50,10 +50,14 @@ public:
 	void FindAllUniforms();
 	bool SetUniform(const char* name, void* value);
 	bool SetVec3Uniform(const char* name, const Vector3 &value);
+	bool SetVec3Uniform(const char *name, const Vector3 &value, unsigned int arrayIndex);
 	bool SetVec4Uniform(const char* name, const Vector4 &value);
+	bool SetVec4Uniform(const char *name, const Vector4 &value, unsigned int arrayIndex);
 	bool SetMatrix4x4Uniform(const char* name, const Matrix4x4 &value);
 	bool SetIntUniform(const char* name, int value);
+	bool SetIntUniform(const char* name, int value, unsigned int arrayIndex);
 	bool SetFloatUniform(const char* name, float value);
+	bool SetFloatUniform(const char* name, float value, unsigned int arrayIndex);
 
 	//MEMBER VARIABLES//////////////////////////////////////////////////////////////////////////
 	GLuint m_vertexShaderID;

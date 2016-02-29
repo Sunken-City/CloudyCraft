@@ -49,8 +49,8 @@ Renderer::Renderer()
 	glEnable(GL_LINE_SMOOTH);
 	hookUpOpenGLPointers();
 	m_defaultShader = new ShaderProgram("Data/Shaders/fixedVertexFormat.vert", "Data/Shaders/fixedVertexFormat.frag");
-	m_defaultMaterial = new Material(m_defaultShader, RenderState(RenderState::DepthTestingMode::ON, RenderState::FaceCullingMode::CULL_BACK_FACES, RenderState::BlendMode::ALPHA_BLEND));
-	m_defaultMaterial->SetTexture("gDiffuseTexture", m_defaultTexture->m_openglTextureID);
+	m_defaultMaterial = new Material(m_defaultShader, RenderState(RenderState::DepthTestingMode::ON, RenderState::FaceCullingMode::RENDER_BACK_FACES, RenderState::BlendMode::ALPHA_BLEND));
+	m_defaultMaterial->SetDiffuseTexture(m_defaultTexture);
 }
 
 //-----------------------------------------------------------------------------------

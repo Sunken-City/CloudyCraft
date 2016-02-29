@@ -27,6 +27,7 @@ MeshRenderer::~MeshRenderer()
 
 void MeshRenderer::Render() const
 {
+	m_material->BindAvailableTextures();
 	m_mesh.RenderFromIBO(m_vaoID, *m_material);
 	GL_CHECK_ERROR();
 }
@@ -40,4 +41,9 @@ void MeshRenderer::Render(const Matrix4x4& view, const Matrix4x4& projection) co
 void MeshRenderer::SetPosition(const Vector3& worldPosition)
 {
 	m_model.SetTranslation(worldPosition);
+}
+
+void MeshRenderer::SetVec3Uniform(const char* uniformName, const Vector3& value)
+{
+	m_material->SetVec3Uniform(uniformName, value);
 }

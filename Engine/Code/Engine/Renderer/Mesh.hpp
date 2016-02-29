@@ -18,6 +18,7 @@ public:
 
 	//FUNCTIONS//////////////////////////////////////////////////////////////////////////
 	void RenderFromIBO(GLuint vaoID, const Material& program) const;
+	void FlipVs();
 	static Mesh CreateCube(float sideLength, const RGBA& color = RGBA::WHITE);
 	static Mesh CreateUVSphere(float radius, int numSegments, const RGBA& color = RGBA::WHITE);
 	static Mesh CreateIcoSphere(float radius, const RGBA& color = RGBA::WHITE, int numPasses = 3);

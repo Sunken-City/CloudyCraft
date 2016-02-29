@@ -99,43 +99,43 @@ inline void Block::SetDirty(bool isLightingDirty)
 }
 
 //-----------------------------------------------------------------------------------
-inline void Block::SetBelowVisible(bool isVisible)
+inline void Block::SetBelowHasPortal(bool hasPortal)
 {
-	m_hsrFlags &= ~BITMASK_BELOW_VISIBLE;
-	m_hsrFlags |= isVisible ? BITMASK_BELOW_VISIBLE : 0x00;
+	m_portalFlags &= ~BITMASK_BELOW_HAS_PORTAL;
+	m_portalFlags |= hasPortal ? BITMASK_BELOW_HAS_PORTAL : 0x00;
 }
 
 //-----------------------------------------------------------------------------------
-inline void Block::SetAboveVisible(bool isVisible)
+inline void Block::SetAboveHasPortal(bool hasPortal)
 {
-	m_hsrFlags &= ~BITMASK_ABOVE_VISIBLE;
-	m_hsrFlags |= isVisible ? BITMASK_ABOVE_VISIBLE : 0x00;
+	m_portalFlags &= ~BITMASK_ABOVE_HAS_PORTAL;
+	m_portalFlags |= hasPortal ? BITMASK_ABOVE_HAS_PORTAL : 0x00;
 }
 
 //-----------------------------------------------------------------------------------
-inline void Block::SetNorthVisible(bool isVisible)
+inline void Block::SetNorthHasPortal(bool hasPortal)
 {
-	m_hsrFlags &= ~BITMASK_NORTH_VISIBLE;
-	m_hsrFlags |= isVisible ? BITMASK_NORTH_VISIBLE : 0x00;
+	m_portalFlags &= ~BITMASK_NORTH_HAS_PORTAL;
+	m_portalFlags |= hasPortal ? BITMASK_NORTH_HAS_PORTAL : 0x00;
 }
 
 //-----------------------------------------------------------------------------------
-inline void Block::SetSouthVisible(bool isVisible)
+inline void Block::SetSouthHasPortal(bool hasPortal)
 {
-	m_hsrFlags &= ~BITMASK_SOUTH_VISIBLE;
-	m_hsrFlags |= isVisible ? BITMASK_SOUTH_VISIBLE : 0x00;
+	m_portalFlags &= ~BITMASK_SOUTH_HAS_PORTAL;
+	m_portalFlags |= hasPortal ? BITMASK_SOUTH_HAS_PORTAL : 0x00;
 }
 
 //-----------------------------------------------------------------------------------
-inline void Block::SetEastVisible(bool isVisible)
+inline void Block::SetEastHasPortal(bool isVisible)
 {
-	m_hsrFlags &= ~BITMASK_EAST_VISIBLE;
-	m_hsrFlags |= isVisible ? BITMASK_EAST_VISIBLE : 0x00;
+	m_portalFlags &= ~BITMASK_EAST_HAS_PORTAL;
+	m_portalFlags |= isVisible ? BITMASK_EAST_HAS_PORTAL : 0x00;
 }
 
 //-----------------------------------------------------------------------------------
-inline void Block::SetWestVisible(bool isVisible)
+inline void Block::SetWestHasPortal(bool isVisible)
 {
-	m_hsrFlags &= ~BITMASK_WEST_VISIBLE;
-	m_hsrFlags |= isVisible ? BITMASK_WEST_VISIBLE : 0x00;
+	m_portalFlags &= ~BITMASK_WEST_HAS_PORTAL;
+	m_portalFlags |= isVisible ? BITMASK_WEST_HAS_PORTAL : 0x00;
 }

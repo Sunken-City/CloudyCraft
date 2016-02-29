@@ -115,6 +115,18 @@ void Material::BindAvailableTextures() const
 }
 
 //-----------------------------------------------------------------------------------
+void Material::SetDiffuseTexture(Texture* texture)
+{
+	m_diffuseID = texture->m_openglTextureID;
+}
+
+//-----------------------------------------------------------------------------------
+void Material::SetNormalTexture(Texture* texture)
+{
+	m_normalID = texture->m_openglTextureID;
+}
+
+//-----------------------------------------------------------------------------------
 void Material::SetDiffuseTexture(const std::string& diffusePath)
 {
 	SetTexture("gDiffuseTexture", Texture::CreateOrGetTexture(diffusePath)->m_openglTextureID);

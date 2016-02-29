@@ -34,6 +34,7 @@ public:
 
 	//FUNCTIONS//////////////////////////////////////////////////////////////////////////
 	static void SetDirtyFlagAndAddToDirtyList(const BlockInfo& info);
+	static Direction GetFaceDirectionFromNormal(const Vector3Int& normal);
 
 	//CONSTANTS//////////////////////////////////////////////////////////////////////////
 	static const int INVALID_INDEX = -1;

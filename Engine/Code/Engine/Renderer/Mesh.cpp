@@ -281,3 +281,11 @@ void Mesh::RenderFromIBO(GLuint vaoID, const Material& material) const
     glBindVertexArray(NULL);
     material.CleanUpRenderState();
 }
+
+void Mesh::FlipVs()
+{
+    for (unsigned int index = 0; index < m_verts.size(); ++index)
+    {
+        m_verts[index].texCoords.y = 1.0f - m_verts[index].texCoords.y;
+    }
+}

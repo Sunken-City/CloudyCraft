@@ -1,5 +1,6 @@
 #include "Engine/Renderer/RGBA.hpp"
 #include "Engine/Math/Vector4.hpp"
+#include "Engine/Math/MathUtils.hpp"
 
 const RGBA RGBA::WHITE(0xFFFFFFFF);
 const RGBA RGBA::BLACK(0x000000FF);
@@ -57,13 +58,27 @@ RGBA::RGBA(unsigned int hexColor)
 {
 }
 
+RGBA::RGBA(const Vector4& color)
+	: red(static_cast<unsigned char>((255.0f * color.x)))
+	, green(static_cast<unsigned char>((255.0f * color.y)))
+	, blue(static_cast<unsigned char>((255.0f * color.z)))
+	, alpha(static_cast<unsigned char>((255.0f * color.w)))
+{
+
+}
+
 //-----------------------------------------------------------------------------------
 RGBA::~RGBA()
 {
 }
 
 //-----------------------------------------------------------------------------------
-Vector4 RGBA::ToVec4()
+Vector4 RGBA::ToVec4() const
 {
 	return Vector4(static_cast<float>(red) / 255.0f, static_cast<float>(green) / 255.0f, static_cast<float>(blue) / 255.0f, static_cast<float>(alpha) / 255.0f);
+}
+
+Vector4 RGBA::RandomVec4()
+{
+	return Vector4(MathUtils::GetRandomFromZeroTo(1.0f), MathUtils::GetRandomFromZeroTo(1.0f), MathUtils::GetRandomFromZeroTo(1.0f), 1.0f);
 }

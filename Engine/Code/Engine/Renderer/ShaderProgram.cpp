@@ -235,6 +235,20 @@ bool ShaderProgram::SetUniform(const char* name, void* value)
 }
 
 //-----------------------------------------------------------------------------------
+bool ShaderProgram::SetVec3Uniform(const char *name, const Vector3 &value, unsigned int numElements)
+{
+	glUseProgram(m_shaderProgramID);
+#pragma TODO("THIS IS A PROBLEM. This is what we needed to get rid of. Don't call this from other functions!")
+	GLint loc = glGetUniformLocation(m_shaderProgramID, name);
+	if (loc >= 0)
+	{
+		glUniform3fv(loc, numElements, (GLfloat*)&value);
+		return true;
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------------
 bool ShaderProgram::SetVec3Uniform(const char *name, const Vector3 &value)
 {
 	glUseProgram(m_shaderProgramID);
@@ -243,6 +257,19 @@ bool ShaderProgram::SetVec3Uniform(const char *name, const Vector3 &value)
 	if (loc >= 0)
 	{
 		glUniform3fv(loc, 1, (GLfloat*)&value);
+		return true;
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------------
+bool ShaderProgram::SetVec4Uniform(const char *name, const Vector4 &value, unsigned int numElements)
+{
+	glUseProgram(m_shaderProgramID);
+	GLint loc = glGetUniformLocation(m_shaderProgramID, name);
+	if (loc >= 0)
+	{
+		glUniform4fv(loc, numElements, (GLfloat*)&value);
 		return true;
 	}
 	return false;
@@ -275,6 +302,19 @@ bool ShaderProgram::SetMatrix4x4Uniform(const char* name, const Matrix4x4 &value
 }
 
 //-----------------------------------------------------------------------------------
+bool ShaderProgram::SetIntUniform(const char* name, int value, unsigned int arrayIndex)
+{
+	glUseProgram(m_shaderProgramID);
+	GLint loc = glGetUniformLocation(m_shaderProgramID, name);
+	if (loc >= 0)
+	{
+		glUniform1iv(loc, arrayIndex, (GLint*)&value); //location, number of elements, do you want gl to transpose matrix?, matrix
+		return true;
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------------
 bool ShaderProgram::SetIntUniform(const char* name, int value)
 {
 	glUseProgram(m_shaderProgramID);
@@ -282,6 +322,19 @@ bool ShaderProgram::SetIntUniform(const char* name, int value)
 	if (loc >= 0)
 	{
 		glUniform1iv(loc, 1, (GLint*)&value); //location, number of elements, do you want gl to transpose matrix?, matrix
+		return true;
+	}
+	return false;
+}
+
+//-----------------------------------------------------------------------------------
+bool ShaderProgram::SetFloatUniform(const char* name, float value, unsigned int arrayIndex)
+{
+	glUseProgram(m_shaderProgramID);
+	GLint loc = glGetUniformLocation(m_shaderProgramID, name);
+	if (loc >= 0)
+	{
+		glUniform1fv(loc, arrayIndex, (GLfloat*)&value); //location, number of elements, do you want gl to transpose matrix?, matrix
 		return true;
 	}
 	return false;

@@ -3,6 +3,7 @@
 class Vector4;
 
 class RGBA
+
 {
 public:
 	//CONSTRUCTORS//////////////////////////////////////////////////////////////////////////
@@ -10,6 +11,7 @@ public:
 	RGBA(float Red, float Green, float Blue);
 	RGBA(float Red, float Green, float Blue, float Alpha);
 	RGBA(unsigned int hexColor);
+	RGBA(const Vector4& color);
 	~RGBA();
 
 	//FUNCTIONS//////////////////////////////////////////////////////////////////////////
@@ -17,8 +19,9 @@ public:
 	static inline unsigned char GetGreen(unsigned int hexColor);
 	static inline unsigned char GetBlue(unsigned int hexColor);
 	static inline RGBA CreateFromUChars(unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha);
+	static Vector4 RandomVec4();
 	inline RGBA WithoutAlpha();
-	Vector4 ToVec4();
+	Vector4 ToVec4() const;
 
 	//OPERATORS//////////////////////////////////////////////////////////////////////////
 	//Damp an RGBA color by a single value. Doesn't affect Alpha.
@@ -29,7 +32,6 @@ public:
 		this->blue -= rhs;
 		return *this;
 	}
-
 	//MEMBER VARIABLES//////////////////////////////////////////////////////////////////////////
 	unsigned char red;
 	unsigned char green;
