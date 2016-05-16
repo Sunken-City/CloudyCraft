@@ -16,6 +16,7 @@ InputSystem::InputSystem(void* hWnd, int maximumNumberOfControllers /*= 0*/)
 , m_linesScrolled(0)
 , m_maximumNumControllers(maximumNumberOfControllers)
 , m_lastPressedChar(0x00) //NULL character
+, m_captureCursor(false)
 {
 	//Only initialize the number of controllers we need for the game.
 	for (int i = 0; i < m_maximumNumControllers; i++)
@@ -59,7 +60,7 @@ void InputSystem::Update(float deltaTime)
 	HWND hWnd = static_cast<HWND>(m_hWnd);
 	m_hasFocus = hWnd == GetFocus();
 
-	if (m_hasFocus)
+	if (m_hasFocus && m_captureCursor)
 	{
 		POINT cursorPos;
 		BOOL success = GetCursorPos(&cursorPos);
@@ -124,6 +125,32 @@ void InputSystem::ShowMouseCursor()
 {
 	ShowCursor(TRUE);
 	m_isCursorVisible = true;
+}
+
+//-----------------------------------------------------------------------------------
+void InputSystem::LockMouseCursor()
+{
+	m_captureCursor = true;
+}
+
+//-----------------------------------------------------------------------------------
+void InputSystem::UnlockMouseCursor()
+{
+	m_captureCursor = false;
+}
+
+//-----------------------------------------------------------------------------------
+void InputSystem::CaptureMouseCursor()
+{
+	HideMouseCursor();
+	LockMouseCursor();
+}
+
+//-----------------------------------------------------------------------------------
+void InputSystem::ReleaseMouseCursor()
+{
+	ShowMouseCursor();
+	UnlockMouseCursor();
 }
 
 //-----------------------------------------------------------------------------------

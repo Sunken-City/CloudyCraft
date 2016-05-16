@@ -111,5 +111,11 @@
     <None Include="Block.inl">
       <Filter>General</Filter>
     </None>
+    <None Include="..\..\Run_Win32\Data\Shaders\fvfPortal.frag">
+      <Filter>General</Filter>
+    </None>
+    <None Include="..\..\Run_Win32\Data\Shaders\fvfPortal.vert">
+      <Filter>General</Filter>
+    </None>
   </ItemGroup>
 </Project>

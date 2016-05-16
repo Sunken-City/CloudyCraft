@@ -35,6 +35,7 @@ extern PFNGLBINDVERTEXARRAYPROC glBindVertexArray;
 extern PFNGLGETATTRIBLOCATIONPROC glGetAttribLocation;
 extern PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
 extern PFNGLVERTEXATTRIBPOINTERPROC glVertexAttribPointer;
+extern PFNGLVERTEXATTRIBIPOINTERPROC glVertexAttribIPointer;
 extern PFNGLUSEPROGRAMPROC glUseProgram;
 
 extern PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
@@ -47,6 +48,9 @@ extern PFNGLUNIFORM1IVPROC	glUniform1iv;
 extern PFNGLUNIFORM2IVPROC	glUniform2iv;
 extern PFNGLUNIFORM3IVPROC	glUniform3iv;
 extern PFNGLUNIFORM4IVPROC	glUniform4iv;
+
+extern PFNGLCLEARBUFFERUIVPROC	glClearBufferuiv;
+extern PFNGLCLEARBUFFERFVPROC	glClearBufferfv;
 
 extern PFNGLBINDSAMPLERPROC glBindSampler;
 extern PFNGLGENSAMPLERSPROC glGenSamplers;

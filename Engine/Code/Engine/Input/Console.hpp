@@ -38,7 +38,7 @@ public:
 	void ActivateConsole();
 	void DeactivateConsole(); 
 	void ClearConsoleHistory();
-	void PrintLine(std::string consoleLine, RGBA color);
+	void PrintLine(std::string consoleLine, RGBA color = RGBA::WHITE);
 	bool RunCommand(std::string commandLine);
 	inline bool IsActive() { return m_isActive; };
 	inline bool IsEmpty() { return (m_cursorPointer == m_currentLine && *m_cursorPointer == '\0'); };
@@ -76,7 +76,7 @@ public:
 	inline bool HasArgs(int argNumber) const { return m_argsList.size() == (unsigned int)argNumber; };
 	inline std::string GetStringArgument(int argNumber) const { return m_argsList[argNumber]; };
 	inline int GetIntArgument(int argNumber) const { return std::stoi(m_argsList[argNumber]); };
-
+	float GetFloatArgument(int argNumber) const { return std::stof(m_argsList[argNumber]); };
 private:
 	const std::string m_fullCommandStr;
 	std::string m_commandName;

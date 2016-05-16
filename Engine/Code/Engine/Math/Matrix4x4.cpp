@@ -49,24 +49,35 @@ void Matrix4x4::MatrixMakePerspective(Matrix4x4* mat, float fovDegreesY, float a
 	float height = size;
 	if (aspect > 1.0f)
 	{
-		width *= aspect;
+		width /= aspect;
 	}
 	else
 	{
-		height /= aspect;
+		height *= aspect;
 	}
 
 	float q = 1.0f / (fz - nz);
 
 	//Prof uses column major. First column is first column of the matrix.
 	float const values[] = {
-		1.0f / width,  0.0f,       0.0f,        0,
-		0.0f,       1.0f / height,  0.0f,        0,
+		width,  0.0f,       0.0f,        0,
+		0.0f,       height,  0.0f,        0,
 		0.0f,       0.0f,       (fz + nz) * q,  -2.0f * fz * nz * q,
 		0.0f,       0.0f,       1.0f,       0.0f,
 	};
 
 	memcpy(mat->data, values, sizeof(values));
+}
+
+void Matrix4x4::MatrixMakeScale(Matrix4x4* matrix, float scale)
+{
+	const float data[16] = {
+		scale, 0.0f, 0.0f, 0.0f,
+		0.0f, scale, 0.0f, 0.0f,
+		0.0f, 0.0f, scale, 0.0f,
+		0.0f, 0.0f, 0.0f,  1.0f
+	};
+	memcpy(matrix->data, data, sizeof(data));
 }
 
 //-----------------------------------------------------------------------------------
@@ -89,6 +100,15 @@ void Matrix4x4::MatrixMakeProjectionOrthogonal(Matrix4x4* mat, float width, floa
 void Matrix4x4::MatrixGetRow(Matrix4x4 const *matrix, int row, Vector4 *out)
 {
 	*out = Vector4(matrix->data[row + 0],
+		matrix->data[row + 4],
+		matrix->data[row + 8],
+		matrix->data[row + 12]);
+}
+
+//------------------------------------------------------------------------
+Vector4 Matrix4x4::MatrixGetRow(Matrix4x4 const *matrix, int row)
+{
+	return Vector4(matrix->data[row + 0],
 		matrix->data[row + 4],
 		matrix->data[row + 8],
 		matrix->data[row + 12]);
@@ -355,6 +375,12 @@ void Matrix4x4::MatrixGetColumn(const Matrix4x4* matrix, int column, Vector4* ou
 }
 
 //------------------------------------------------------------------------
+Vector4 Matrix4x4::MatrixGetColumn(const Matrix4x4* matrix, int column)
+{
+	return matrix->column[column];
+}
+
+//------------------------------------------------------------------------
 void Matrix4x4::MatrixSetColumn(Matrix4x4* matrix, int column, const Vector4& input)
 {
 	matrix->column[column] = input;
@@ -402,6 +428,98 @@ void Matrix4x4::SetTranslation(const Vector3& offset)
 	data[3] = offset.x;
 	data[7] = offset.y;
 	data[11] = offset.z;
+}
+
+Vector3 Matrix4x4::GetTranslation() const
+{
+	return Vector3(data[3], data[7], data[11]);
+}
+
+//-----------------------------------------------------------------------------------
+Vector3 Matrix4x4::MatrixGetForward(Matrix4x4* matrix)
+{
+	return Vector3(matrix->data[9], matrix->data[10], matrix->data[11]);
+}
+
+//-----------------------------------------------------------------------------------
+void Matrix4x4::MatrixSetForward(Matrix4x4* matrix, Vector3 forward)
+{
+	matrix->data[9] = forward.x;
+	matrix->data[10] = forward.y;
+	matrix->data[11] = forward.z;
+}
+
+//-----------------------------------------------------------------------------------
+Matrix4x4 Matrix4x4::MatrixFromBasis(const Vector3& right, const Vector3& up, const Vector3& forward, const Vector3& t)
+{
+	Matrix4x4 mat = Matrix4x4::IDENTITY;
+	mat.data[0] = right.x;
+	mat.data[4] = right.y;
+	mat.data[8] = right.z;
+
+	mat.data[1] = up.x;
+	mat.data[5] = up.y;
+	mat.data[9] = up.z;
+
+	mat.data[2] = forward.x;
+	mat.data[6] = forward.y;
+	mat.data[10] = forward.z;
+
+	mat.data[3] = t.x;
+	mat.data[7] = t.y;
+	mat.data[11] = t.z;
+	return mat;
+}
+
+//-----------------------------------------------------------------------------------
+Matrix4x4 Matrix4x4::MatrixLerp(const Matrix4x4& a, const Matrix4x4& b, const float time)
+{
+	Vector3 r0, u0, f0, t0;
+	Matrix4x4::GetBasis(a, r0, u0, f0, t0);
+
+	Vector3 r1, u1, f1, t1;
+	Matrix4x4::GetBasis(b, r1, u1, f1, t1);
+
+	Vector3 r, u, f, t;
+	r = MathUtils::Lerp(time, r0, r1);
+	u = MathUtils::Lerp(time, u0, u1);
+	f = MathUtils::Lerp(time, f0, f1);
+	t = MathUtils::Lerp(time, t0, t1);
+
+	return MatrixFromBasis(r, u, f, t);
+}
+
+void Matrix4x4::GetBasis(const Matrix4x4& a, Vector3& b1, Vector3& b2, Vector3& b3, Vector3& b4)
+{
+	b1 = Vector3(a.data[0],  a.data[4],  a.data[8]);
+	b2 = Vector3(a.data[1],  a.data[5],  a.data[9]);
+	b3 = Vector3(a.data[2],  a.data[6],  a.data[10]);
+	b4 = Vector3(a.data[3], a.data[7], a.data[11]);
+}
+
+void Matrix4x4::Rotate(float degrees, const Vector3& axis)
+{
+	Matrix4x4 rotation = Matrix4x4::IDENTITY;
+	float cosineDegrees = MathUtils::CosDegrees(degrees);
+	float sineDegrees = MathUtils::SinDegrees(degrees);
+	float oneMinusCosineDegrees = (1.0f - cosineDegrees);
+	rotation.data[0] = (axis.x * axis.x) * oneMinusCosineDegrees + cosineDegrees;
+	rotation.data[1] = (axis.x * axis.y) * oneMinusCosineDegrees - (axis.z * sineDegrees);
+	rotation.data[2] = (axis.x * axis.z) * oneMinusCosineDegrees + (axis.y * sineDegrees);
+	rotation.data[3] = 0;
+	rotation.data[4] = (axis.x * axis.y) * oneMinusCosineDegrees + (axis.z * sineDegrees);
+	rotation.data[5] = (axis.y * axis.y) * oneMinusCosineDegrees + cosineDegrees;
+	rotation.data[6] = (axis.y * axis.z) * oneMinusCosineDegrees - (axis.x * sineDegrees);
+	rotation.data[7] = 0;
+	rotation.data[8] = (axis.x * axis.z) * oneMinusCosineDegrees - (axis.y * sineDegrees);
+	rotation.data[9] = (axis.y * axis.z) * oneMinusCosineDegrees + (axis.x * sineDegrees);
+	rotation.data[10] = (axis.z * axis.z) * oneMinusCosineDegrees + cosineDegrees;
+	rotation.data[11] = 0;
+	rotation.data[12] = 0;
+	rotation.data[13] = 0;
+	rotation.data[14] = 0;
+	rotation.data[15] = 1;
+	Matrix4x4::MatrixMultiply(this, this, &rotation);
 }
 
 //------------------------------------------------------------------------

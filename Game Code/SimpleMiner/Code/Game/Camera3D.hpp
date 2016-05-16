@@ -3,6 +3,7 @@
 #include "Engine/Math/EulerAngles.hpp"
 
 class Player;
+class Matrix4x4;
 
 class Camera3D
 {
@@ -25,10 +26,11 @@ public:
 	Vector3 GetForwardXY() const;
 	Vector3 GetLeftXY() const;
 	void UpdateViewFromCamera() const;
+	void ExitViewFromCamera();
 
 	//MEMBER VARIABLES//////////////////////////////////////////////////////////////////////////
-	Vector3 m_position;
-	EulerAngles m_orientation;
+	mutable Vector3 m_position;
+	mutable EulerAngles m_orientation;
 	CameraMode m_cameraMode;
 	Player* m_player;
 };

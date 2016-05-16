@@ -1,9 +1,10 @@
 #pragma once
-#include "Engine/Renderer/Mesh.hpp"
 #include "Engine/Math/Matrix4x4.hpp"
 #include "Engine/Renderer/Vertex.hpp"
+#include "Engine/Core/ErrorWarningAssert.hpp"
 
 class Material;
+class Mesh;
 
 class MeshRenderer
 {
@@ -11,19 +12,22 @@ class MeshRenderer
 public:
 	//CONSTRUCTORS//////////////////////////////////////////////////////////////////////////
 	MeshRenderer();
-	MeshRenderer(const Mesh& mesh, Material* material);
+	MeshRenderer(Mesh* mesh, Material* material);
 	~MeshRenderer();
 
 	//FUNCTIONS//////////////////////////////////////////////////////////////////////////
 	void Render() const;
-	void Render(const Matrix4x4& view, const Matrix4x4& projection) const;
 
 	void SetPosition(const Vector3& worldPosition);
 	void SetVec3Uniform(const char* uniformName, const Vector3& value);
-#pragma todo("Make this private again and set up the accessor functions for all the methods associated")
+	
+	//MEMBER VARIABLES//////////////////////////////////////////////////////////////////////////
 	Material* m_material;
+	Mesh* m_mesh;
+
 private:
-	Mesh m_mesh;
 	GLuint m_vaoID;
 	Matrix4x4 m_model;
+
+	MeshRenderer(const MeshRenderer&);
 };

@@ -6,7 +6,7 @@
 #include "Engine/Math/Vector3.hpp"
 #include "Engine/Math/Vector2Int.hpp"
 #include "Engine/Math/Vector3Int.hpp"
-#include "Engine/Renderer/TheRenderer.hpp"
+#include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Renderer/RGBA.hpp"
 #include "Engine/Renderer/AABB2.hpp"
 #include "Engine/Renderer/Vertex.hpp"
@@ -57,9 +57,9 @@ inline void AddDebugPoint(const Vector3& position, const RGBA& color)
 //--------------------------------------------------------------------
 inline void DrawDebugPoints(float pointSize, bool enableDepthTesting)
 {
-	TheRenderer::instance->EnableDepthTest(enableDepthTesting);
-	TheRenderer::instance->SetPointSize(pointSize);
-	TheRenderer::instance->DrawVertexArray(g_debugPoints.data(), g_debugPoints.size(), TheRenderer::DrawMode::POINTS);
+	Renderer::instance->EnableDepthTest(enableDepthTesting);
+	Renderer::instance->SetPointSize(pointSize);
+	Renderer::instance->DrawVertexArray(g_debugPoints.data(), g_debugPoints.size(), Renderer::DrawMode::POINTS);
 }
 
 //--------------------------------------------------------------------

@@ -61,9 +61,9 @@ void Player::Render() const
 	{
 		RenderPlayerBoundingBox();
 		//Raycast Debug
-		TheRenderer::instance->DrawLine(m_playerEyes, m_target, m_raycastColor, 5.0f);
-		TheRenderer::instance->EnableDepthTest(false);
-		TheRenderer::instance->DrawLine(m_playerEyes, m_target, m_raycastColor, 1.0f);
+		Renderer::instance->DrawLine(m_playerEyes, m_target, m_raycastColor, 5.0f);
+		Renderer::instance->EnableDepthTest(false);
+		Renderer::instance->DrawLine(m_playerEyes, m_target, m_raycastColor, 1.0f);
 		DrawDebugPoints(10.0f, true);
 	}
 
@@ -85,7 +85,7 @@ void Player::Render() const
 //-----------------------------------------------------------------------------------
 void Player::RenderDiggingAnimation() const
 {
-	TheRenderer::instance->EnableDepthTest(true);
+	Renderer::instance->EnableDepthTest(true);
 	AABB2 texCoords = m_blockBreakAnimation->GetCurrentTexCoords();
 
 	//replace this with a difference in my position and the block's to determine which faces are visible.
@@ -96,20 +96,20 @@ void Player::RenderDiggingAnimation() const
 	Face top = Block::GetFace(m_raycastResult.impactTileCoords, Vector3Int::UNIT_Z);
 	Face bottom = Block::GetFace(m_raycastResult.impactTileCoords, Vector3Int::UNIT_Z * -1);
 
-	TheRenderer::instance->DrawTexturedFace(west, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
-	TheRenderer::instance->DrawTexturedFace(east, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
-	TheRenderer::instance->DrawTexturedFace(north, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
-	TheRenderer::instance->DrawTexturedFace(south, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
-	TheRenderer::instance->DrawTexturedFace(top, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
-	TheRenderer::instance->DrawTexturedFace(bottom, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
+	Renderer::instance->DrawTexturedFace(west, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
+	Renderer::instance->DrawTexturedFace(east, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
+	Renderer::instance->DrawTexturedFace(north, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
+	Renderer::instance->DrawTexturedFace(south, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
+	Renderer::instance->DrawTexturedFace(top, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
+	Renderer::instance->DrawTexturedFace(bottom, texCoords.mins, texCoords.maxs, m_blockBreakAnimation->GetTexture(), RGBA(1.0f, 1.0f, 1.0f, 0.2f));
 }
 
 //-----------------------------------------------------------------------------------
 void Player::RenderFaceHighlightOnRaycastBlock() const
 {
 	Vector3 vertOffset = m_camera.GetForwardXYZ() * -0.01f;
-	TheRenderer::instance->SetLineWidth(2.0f);
-	TheRenderer::instance->EnableDepthTest(true);
+	Renderer::instance->SetLineWidth(2.0f);
+	Renderer::instance->EnableDepthTest(true);
 	Face highlightedFace = Block::GetFace(m_raycastResult.impactTileCoords, m_raycastResult.impactSurfaceNormal);
 	std::vector<Vertex_PCT> vertexes;
 	Vertex_PCT vertex;
@@ -122,7 +122,7 @@ void Player::RenderFaceHighlightOnRaycastBlock() const
 	vertexes.push_back(vertex);
 	vertex.pos = highlightedFace.verts[3] + vertOffset;
 	vertexes.push_back(vertex);
-	TheRenderer::instance->DrawVertexArray(vertexes.data(), vertexes.size(), TheRenderer::LINE_LOOP);
+	Renderer::instance->DrawVertexArray(vertexes.data(), vertexes.size(), Renderer::DrawMode::LINE_LOOP);
 }
 
 //-----------------------------------------------------------------------------------
@@ -134,19 +134,19 @@ void Player::Render2DPlayerTexture() const
 	Vector3 topLeft = m_position - (Vector3::UNIT_X * HALF_PLAYER_WIDTH * 1.5f) + (Vector3::UNIT_Z * HALF_PLAYER_HEIGHT);
 	Vector3 topRight = m_position + (Vector3::UNIT_X * HALF_PLAYER_WIDTH * 1.5f) + (Vector3::UNIT_Z * HALF_PLAYER_HEIGHT);
 	Face playerQuad = Face(topRight, topLeft, bottomLeft, bottomRight);
-	TheRenderer::instance->EnableDepthTest(true);
-	TheRenderer::instance->DrawTexturedFace(playerQuad, Vector2::ZERO, Vector2::ONE, m_texture, RGBA::WHITE);
+	Renderer::instance->EnableDepthTest(true);
+	Renderer::instance->DrawTexturedFace(playerQuad, Vector2::ZERO, Vector2::ONE, m_texture, RGBA::WHITE);
 }
 
 //-----------------------------------------------------------------------------------
 void Player::RenderPlayerBoundingBox() const
 {
-	TheRenderer::instance->EnableDepthTest(true);
-	TheRenderer::instance->SetLineWidth(4.0f);
-	TheRenderer::instance->DrawAABBBoundingBox(m_boundingBox + m_position, RGBA::MAGENTA);
-	TheRenderer::instance->EnableDepthTest(false);
-	TheRenderer::instance->SetLineWidth(1.0f);
-	TheRenderer::instance->DrawAABBBoundingBox(m_boundingBox + m_position, RGBA::MAGENTA);
+	Renderer::instance->EnableDepthTest(true);
+	Renderer::instance->SetLineWidth(4.0f);
+	Renderer::instance->DrawAABBBoundingBox(m_boundingBox + m_position, RGBA::MAGENTA);
+	Renderer::instance->EnableDepthTest(false);
+	Renderer::instance->SetLineWidth(1.0f);
+	Renderer::instance->DrawAABBBoundingBox(m_boundingBox + m_position, RGBA::MAGENTA);
 }
 
 //-----------------------------------------------------------------------------------
@@ -369,14 +369,6 @@ void Player::UpdateFromKeyboard(float deltaTime)
 	}
 
 	MoveFromKeyboard(deltaTime);
-
-	InputSystem::instance->HideMouseCursor();
-	Vector2Int cursorDelta = InputSystem::instance->GetDeltaMouse();
-
-	m_camera.m_position = m_position + EYE_OFFSET;
-	m_camera.m_orientation.yawDegreesAboutZ -= ((float)cursorDelta.x * 0.022f);
-	float proposedPitch = m_camera.m_orientation.pitchDegreesAboutY + ((float)cursorDelta.y * 0.022f);
-	m_camera.m_orientation.pitchDegreesAboutY = MathUtils::Clamp(proposedPitch, -89.9f, 89.9f);
 }
 
 //-----------------------------------------------------------------------------------

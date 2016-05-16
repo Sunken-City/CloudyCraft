@@ -1,5 +1,6 @@
 #include "Engine/Math/Vector3.hpp"
 #include "Engine/Math/Vector2.hpp"
+#include "Engine/Math/Vector4.hpp"
 #include "Engine/Math/Vector3Int.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include <cmath>
@@ -48,6 +49,13 @@ Vector3::Vector3(float initialValue)
 	x = initialValue;
 	y = initialValue;
 	z = initialValue;
+}
+
+Vector3::Vector3(const Vector4& other)
+{
+	x = other.x;
+	y = other.y;
+	z = other.z;
 }
 
 //-----------------------------------------------------------------------------------

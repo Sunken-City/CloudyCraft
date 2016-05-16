@@ -1,4 +1,5 @@
 #include "Engine/Math/Vector2.hpp"
+#include "Engine/Math/Vector2Int.hpp"
 #include "Engine/Math/MathUtils.hpp"
 #include <cmath>
 
@@ -24,6 +25,14 @@ Vector2::Vector2(const Vector2& other)
 	: x(other.x)
 	, y(other.y)
 {
+}
+
+//-----------------------------------------------------------------------------------
+Vector2::Vector2(const Vector2Int& other)
+	: x(static_cast<float>(other.x))
+	, y(static_cast<float>(other.y))
+{
+
 }
 
 //-----------------------------------------------------------------------------------

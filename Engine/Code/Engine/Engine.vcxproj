@@ -13,29 +13,41 @@
       <Configuration>Release</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Tools Debug|Win32">
+      <Configuration>Tools Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\ThirdParty\Parsers\XMLParser.cpp" />
     <ClCompile Include="..\ThirdParty\stb_image.c" />
     <ClCompile Include="Audio\Audio.cpp" />
     <ClCompile Include="Core\ErrorWarningAssert.cpp" />
     <ClCompile Include="Core\ProfilingUtils.cpp" />
     <ClCompile Include="Core\StringUtils.cpp" />
+    <ClCompile Include="Input\BinaryReader.cpp" />
+    <ClCompile Include="Input\BinaryWriter.cpp" />
     <ClCompile Include="Input\Console.cpp" />
     <ClCompile Include="Input\InputOutputUtils.cpp" />
     <ClCompile Include="Input\InputSystem.cpp" />
     <ClCompile Include="Input\XInputController.cpp" />
+    <ClCompile Include="Input\XMLUtils.cpp" />
+    <ClCompile Include="Math\Dice.cpp" />
     <ClCompile Include="Math\EulerAngles.cpp" />
     <ClCompile Include="Math\MathUtilities.cpp" />
     <ClCompile Include="Math\MathUtils.cpp" />
     <ClCompile Include="Math\Matrix4x4.cpp" />
+    <ClCompile Include="Math\MatrixStack4x4.cpp" />
     <ClCompile Include="Math\Noise.cpp" />
     <ClCompile Include="Math\Vector2.cpp" />
     <ClCompile Include="Math\Vector2Int.cpp" />
     <ClCompile Include="Math\Vector3.cpp" />
     <ClCompile Include="Math\Vector3Int.cpp" />
     <ClCompile Include="Math\Vector4.cpp" />
+    <ClCompile Include="Math\Vector4Int.cpp" />
     <ClCompile Include="Renderer\AABB2.cpp" />
     <ClCompile Include="Renderer\AABB3.cpp" />
+    <ClCompile Include="Renderer\AnimationMotion.cpp" />
     <ClCompile Include="Renderer\BitmapFont.cpp" />
     <ClCompile Include="Renderer\DebugRenderer.cpp" />
     <ClCompile Include="Renderer\Face.cpp" />
@@ -43,41 +55,55 @@
     <ClCompile Include="Renderer\Light.cpp" />
     <ClCompile Include="Renderer\Material.cpp" />
     <ClCompile Include="Renderer\Mesh.cpp" />
+    <ClCompile Include="Renderer\MeshBuilder.cpp" />
     <ClCompile Include="Renderer\MeshRenderer.cpp" />
     <ClCompile Include="Renderer\OpenGLExtensions.cpp" />
     <ClCompile Include="Renderer\Renderer.cpp" />
     <ClCompile Include="Renderer\RGBA.cpp" />
     <ClCompile Include="Renderer\ShaderProgram.cpp" />
+    <ClCompile Include="Renderer\Skeleton.cpp" />
     <ClCompile Include="Renderer\SpriteAnim.cpp" />
     <ClCompile Include="Renderer\SpriteSheet.cpp" />
     <ClCompile Include="Renderer\Texture.cpp" />
     <ClCompile Include="Renderer\TheRenderer.cpp" />
     <ClCompile Include="Renderer\Vertex.cpp" />
+    <ClCompile Include="TextRendering\StringEffectFragment.cpp" />
+    <ClCompile Include="TextRendering\TextBox.cpp" />
+    <ClCompile Include="TextRendering\TextEffect.cpp" />
     <ClCompile Include="Time\Time.cpp" />
+    <ClCompile Include="Tools\fbx.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\ThirdParty\OpenGL\glext.h" />
     <ClInclude Include="..\ThirdParty\OpenGL\wglext.h" />
+    <ClInclude Include="..\ThirdParty\Parsers\XMLParser.hpp" />
     <ClInclude Include="Audio\Audio.hpp" />
     <ClInclude Include="Core\ErrorWarningAssert.hpp" />
     <ClInclude Include="Core\ProfilingUtils.h" />
     <ClInclude Include="Core\StringUtils.hpp" />
+    <ClInclude Include="Input\BinaryReader.hpp" />
+    <ClInclude Include="Input\BinaryWriter.hpp" />
     <ClInclude Include="Input\Console.hpp" />
     <ClInclude Include="Input\InputOutputUtils.hpp" />
     <ClInclude Include="Input\InputSystem.hpp" />
     <ClInclude Include="Input\XInputController.hpp" />
+    <ClInclude Include="Input\XMLUtils.hpp" />
+    <ClInclude Include="Math\Dice.hpp" />
     <ClInclude Include="Math\EulerAngles.hpp" />
     <ClInclude Include="Math\MathUtilities.hpp" />
     <ClInclude Include="Math\MathUtils.hpp" />
     <ClInclude Include="Math\Matrix4x4.hpp" />
+    <ClInclude Include="Math\MatrixStack4x4.hpp" />
     <ClInclude Include="Math\Noise.hpp" />
     <ClInclude Include="Math\Vector2.hpp" />
     <ClInclude Include="Math\Vector2Int.hpp" />
     <ClInclude Include="Math\Vector3.hpp" />
     <ClInclude Include="Math\Vector3Int.hpp" />
     <ClInclude Include="Math\Vector4.hpp" />
+    <ClInclude Include="Math\Vector4Int.hpp" />
     <ClInclude Include="Renderer\AABB2.hpp" />
     <ClInclude Include="Renderer\AABB3.hpp" />
+    <ClInclude Include="Renderer\AnimationMotion.hpp" />
     <ClInclude Include="Renderer\BitmapFont.hpp" />
     <ClInclude Include="Renderer\DebugRenderer.hpp" />
     <ClInclude Include="Renderer\Face.hpp" />
@@ -85,17 +111,23 @@
     <ClInclude Include="Renderer\Light.hpp" />
     <ClInclude Include="Renderer\Material.hpp" />
     <ClInclude Include="Renderer\Mesh.hpp" />
+    <ClInclude Include="Renderer\MeshBuilder.hpp" />
     <ClInclude Include="Renderer\MeshRenderer.hpp" />
     <ClInclude Include="Renderer\OpenGLExtensions.hpp" />
     <ClInclude Include="Renderer\Renderer.hpp" />
     <ClInclude Include="Renderer\RGBA.hpp" />
     <ClInclude Include="Renderer\ShaderProgram.hpp" />
+    <ClInclude Include="Renderer\Skeleton.hpp" />
     <ClInclude Include="Renderer\SpriteAnim.hpp" />
     <ClInclude Include="Renderer\SpriteSheet.hpp" />
     <ClInclude Include="Renderer\Texture.hpp" />
     <ClInclude Include="Renderer\TheRenderer.hpp" />
     <ClInclude Include="Renderer\Vertex.hpp" />
+    <ClInclude Include="TextRendering\StringEffectFragment.hpp" />
+    <ClInclude Include="TextRendering\TextBox.hpp" />
+    <ClInclude Include="TextRendering\TextEffect.hpp" />
     <ClInclude Include="Time\Time.hpp" />
+    <ClInclude Include="Tools\fbx.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{ADF625C9-96EC-4C9F-B6F0-235762D622AE}</ProjectGuid>
@@ -104,6 +136,12 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tools Debug|Win32'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v140</PlatformToolset>
@@ -128,6 +166,9 @@
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Tools Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='DebugInline|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -138,6 +179,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <OutDir>$(SolutionDir)Temporary\$(ProjectName)_$(Platform)_$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)Temporary\$(ProjectName)_$(Platform)_$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Tools Debug|Win32'">
+    <OutDir>$(SolutionDir)Temporary\$(ProjectName)_$(Platform)_$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)Temporary\$(ProjectName)_$(Platform)_$(Configuration)\</IntDir>
+    <IncludePath>$(ProjectDir)..\ThirdParty\FBX\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)..\ThirdParty\FBX\lib\vs2015\$(PlatformShortName)\debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugInline|Win32'">
     <OutDir>$(SolutionDir)Temporary\$(ProjectName)_$(Platform)_$(Configuration)\</OutDir>
@@ -154,6 +201,22 @@
       <WarningLevel>Level4</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)../../Engine/Code/;$(SolutionDir)Code/</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MinimalRebuild>false</MinimalRebuild>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Tools Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;TOOLS_BUILD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)../../Engine/Code/;$(SolutionDir)Code/</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <MinimalRebuild>false</MinimalRebuild>

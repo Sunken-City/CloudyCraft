@@ -1,6 +1,6 @@
 #include "Engine/Input/Console.hpp"
 #include "Engine/Input/InputSystem.hpp"
-#include "Engine/Renderer/TheRenderer.hpp"
+#include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Math/Vector2.hpp"
 #include "Engine/Renderer/RGBA.hpp"
 #include "Engine/Renderer/AABB2.hpp"
@@ -150,24 +150,25 @@ void Console::Render() const
 {
 	if (m_isActive)
 	{
-		TheRenderer::instance->SetOrtho(Vector2(0.0f, 0.0f), Vector2(1600, 900));
-		TheRenderer::instance->EnableDepthTest(false);
-		TheRenderer::instance->DrawAABB(AABB2(Vector2::ZERO, Vector2(1600, 900)),RGBA(0x00000088));
+		Renderer::instance->BeginOrtho(Vector2(0.0f, 0.0f), Vector2(1600, 900));
+		Renderer::instance->EnableDepthTest(false);
+		Renderer::instance->DrawAABB(AABB2(Vector2(0, 0), Vector2(1600, 900)), RGBA(0x00000088));
 
 		Vector2 currentBaseline = Vector2::ONE * 10.0f;
-		TheRenderer::instance->DrawText2D(currentBaseline, std::string(m_currentLine), 1.0f, RGBA::WHITE, true, m_font);
+		Renderer::instance->DrawText2D(currentBaseline, std::string(m_currentLine), 1.0f, RGBA::WHITE, true, m_font);
 		unsigned int index = m_consoleHistory.size() - 1;
 		unsigned int numberOfLinesPrinted = 0;
 		for (auto reverseIterator = m_consoleHistory.rbegin(); reverseIterator != m_consoleHistory.rend(); ++reverseIterator, --index)
 		{
 			currentBaseline += Vector2(0.0f, (float)m_font->m_maxHeight);
-			TheRenderer::instance->DrawText2D(currentBaseline, m_consoleHistory[index].text, 1.0f, m_consoleHistory[index].color, true, m_font);
+			Renderer::instance->DrawText2D(currentBaseline, m_consoleHistory[index].text, 1.0f, m_consoleHistory[index].color, true, m_font);
 			numberOfLinesPrinted++;
 			if (numberOfLinesPrinted > MAX_CONSOLE_LINES)
 			{
 				return;
 			}
 		}
+		Renderer::instance->EndOrtho();
 	}
 }
 

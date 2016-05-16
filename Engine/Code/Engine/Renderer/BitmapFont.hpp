@@ -1,5 +1,6 @@
 #pragma once
 #include "Engine/Renderer/SpriteSheet.hpp"
+#include "Engine/Renderer/Material.hpp"
 #include "Engine/Math/Vector2Int.hpp"
 #include <map>
 #include <vector>
@@ -46,12 +47,13 @@ public:
 	static BitmapFont* GetFontByName(const std::string& imageFilePath);
 	static BitmapFont* CreateOrGetFont(const std::string& bitmapFontName);
 	static BitmapFont* CreateOrGetFontFromGlyphSheet(const std::string& bitmapFontName);
-	float CalcTextWidth(const std::string& textToWrite, float scale);
+	float CalcTextWidth(const std::string& textToWrite, float scale) const;
 
 	//GETTERS//////////////////////////////////////////////////////////////////////////
 	AABB2 GetTexCoordsForGlyph(int glyphAscii) const;
 	AABB2 GetTexCoordsForGlyph(const Glyph& glyph) const;
 	Texture* GetTexture() const;
+	Material* GetMaterial() const;
 	const Glyph* GetGlyph(char glyphAscii) const;
 	const Vector2 GetKerning(const Glyph& prevGlyph, const Glyph& currentGlyph) const;
 	int GetCharacterWidth();
@@ -73,6 +75,7 @@ private:
 	static const int CHARACTER_WIDTH = 16;
 
 	SpriteSheet m_spriteSheet;
+	Material* m_material;
 	Vector2Int m_imageDimensions;
 	std::map<char, Glyph> m_glyphMap;
 	std::map<std::pair<char, char>, int> m_kerningMap;

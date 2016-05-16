@@ -5,7 +5,7 @@
 #include <crtdbg.h>
 #include "Engine/Math/Vector2.hpp"
 #include "Engine/Time/Time.hpp"
-#include "Engine/Renderer/TheRenderer.hpp"
+#include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Audio/Audio.hpp"
 #include "Engine/Input/InputSystem.hpp"
 #include "Engine/Input/Console.hpp"
@@ -235,7 +235,7 @@ void Initialize(HINSTANCE applicationInstanceHandle)
 	CreateOpenGLWindow(applicationInstanceHandle);
 	InitializeCriticalSection(&g_chunkListsCriticalSection);
 	InitializeCriticalSection(&g_diskIOCriticalSection);
-	TheRenderer::instance = new TheRenderer();
+	Renderer::instance = new Renderer();
 	AudioSystem::instance = new AudioSystem();
 	InputSystem::instance = new InputSystem(g_hWnd);
 	Console::instance = new Console();
@@ -250,9 +250,9 @@ void Initialize(HINSTANCE applicationInstanceHandle)
 void Shutdown()
 {
 	//Just before we delete all the subsystems, go ahead and render a saving message so that players know we're quitting
-	TheRenderer::instance->SetOrtho(Vector2(0.0f, 0.0f), Vector2(1600, 900));
-	TheRenderer::instance->EnableAlphaBlending();
-	TheRenderer::instance->DrawText2D(Vector2(500.0f, 400.0f), Stringf("Saving and closing..."), 50.0f * 0.65f, 50.0f, RGBA::WHITE, false);
+	Renderer::instance->SetOrtho(Vector2(0.0f, 0.0f), Vector2(1600, 900));
+	Renderer::instance->EnableAlphaBlending();
+	Renderer::instance->DrawText2D(Vector2(500.0f, 400.0f), Stringf("Saving and closing..."), 50.0f * 0.65f, 50.0f, RGBA::WHITE, false);
 	SwapBuffers(g_displayDeviceContext);
 
 	//Clean up all the engine subsystems.
@@ -266,8 +266,8 @@ void Shutdown()
 	InputSystem::instance = nullptr;
 	delete AudioSystem::instance;
 	AudioSystem::instance = nullptr;
-	delete TheRenderer::instance;
-	TheRenderer::instance = nullptr;
+	delete Renderer::instance;
+	Renderer::instance = nullptr;
 	DeleteCriticalSection(&g_chunkListsCriticalSection);
 	DeleteCriticalSection(&g_diskIOCriticalSection);
 }

@@ -1,39 +1,50 @@
 #pragma once
 #include <vector>
 #include "Engine/Audio/Audio.hpp"
+#include "Engine/Renderer/MeshRenderer.hpp"
 
 class SpriteSheet;
 class RGBA;
 class Camera3D;
 class World;
 class Player;
+class Material;
+class Framebuffer;
 
 class TheGame
 {
 public:
-	TheGame();
-	~TheGame();
-	void Update(float deltaTime);
-	void SetUp3DPerspective() const;
-	void Render() const;
+    TheGame();
+    ~TheGame();
+    void Update(float deltaTime);
+    void Begin3DPerspective() const;
+    void End3DPerspective() const;
+    void Render() const;
 
-	void RenderUI() const;
-	void RenderDebugText() const;
-	void RenderAxisLines() const;
-	void RenderCrosshair() const;
-	void RenderInventory() const;
+    void DebugRender() const;
+    void RenderUI() const;
+    void RenderDebugText() const;
+    void RenderAxisLines() const;
+    void RenderCrosshair() const;
+    void RenderInventory() const;
 
-	static TheGame* instance;
+    static TheGame* instance;
 
-	SpriteSheet* m_blockSheet;
-	Camera3D* m_playerCamera;
-	Player* m_player;
-	std::vector<World*> m_worlds;
-	SoundID m_worldSwapSFX;
+    SpriteSheet* m_blockSheet;
+    Camera3D* m_playerCamera;
+    Player* m_player;
+    std::vector<World*> m_worlds;
+    Framebuffer* m_primaryWorldFramebuffer;
+    Framebuffer* m_secondaryWorldFramebuffer;
+    Material* m_blockMaterial;
+    Material* m_blockMaterialWithoutPortals;
+    Material* m_primaryWorldFBOMaterial;
+    SoundID m_worldSwapSFX;
 
 private:
-	//Ignore warnings for being unable to generate a copy constructor for singleton class.
-	TheGame& operator= (const TheGame& other);
-	void UpdateDebug();
-	int m_currentlyRenderedWorldID;
+    //Ignore warnings for being unable to generate a copy constructor for singleton class.
+    TheGame& operator= (const TheGame& other);
+    void UpdateDebug();
+    int m_currentlyRenderedWorldID;
+    int m_alternateRenderedWorldID;
 };

@@ -1,5 +1,5 @@
 #include "Game/ParticleSystem.hpp"
-#include "Engine/Renderer/TheRenderer.hpp"
+#include "Engine/Renderer/Renderer.hpp"
 #include "Engine/Math/MathUtils.hpp"
 
 //---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ void Particle::Update(float deltaSeconds)
 //---------------------------------------------------------------------------
 void Particle::Render() const
 {
-	TheRenderer::instance->DrawPoint(m_state.position, m_startingColor, m_currentSize);
+	Renderer::instance->DrawPoint(m_state.position, m_startingColor, m_currentSize);
 }
 
 //---------------------------------------------------------------------------

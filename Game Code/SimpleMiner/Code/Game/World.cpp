@@ -49,9 +49,6 @@ World::World(int id, const RGBA& skyLight, const RGBA& skyColor, Generator* gene
 	g_savingProfiling = RegisterProfilingChannel();
 	g_vaBuildingProfiling = RegisterProfilingChannel();
 	g_temporaryProfiling = RegisterProfilingChannel();
-
-	m_chunkGenerationThread.detach();
-	m_diskIOThread.detach();
 }
 
 //-----------------------------------------------------------------------------------
@@ -1038,7 +1035,7 @@ void ChunkGenerationThreadMain()
 {
 	while (!g_isQuitting)
 	{
-		Sleep(0);
+		SwitchToThread();
 		bool gotCoords = false;
 		PrioritizedChunkCoords coords;
 		EnterCriticalSection(&g_chunkListsCriticalSection);
@@ -1050,7 +1047,10 @@ void ChunkGenerationThreadMain()
 		}
 		LeaveCriticalSection(&g_chunkListsCriticalSection);
 		if (!gotCoords)
+		{
+			Sleep(10);
 			continue;
+		}
 		Chunk* newChunk = new Chunk(coords.chunkCoords, coords.world);
 		EnterCriticalSection(&g_chunkListsCriticalSection);
 		{
@@ -1066,7 +1066,7 @@ void ChunkIOThreadMain()
 {
 	while (!g_isQuitting)
 	{
-		Sleep(0);
+		SwitchToThread();
 		bool gotCoords = false;
 		Chunk* chunkToSave = nullptr;
 		PrioritizedChunkCoords chunkToLoadCoords;
@@ -1090,6 +1090,12 @@ void ChunkIOThreadMain()
 		}
 		LeaveCriticalSection(&g_diskIOCriticalSection);
 
+		if (!gotCoords && !chunkToSave)
+		{
+			Sleep(10);
+			continue;
+		}
+		
 		if (gotCoords)
 		{
 			Chunk* loadedChunk = World::LoadChunk(chunkToLoadCoords.world->m_worldID,chunkToLoadCoords.chunkCoords);

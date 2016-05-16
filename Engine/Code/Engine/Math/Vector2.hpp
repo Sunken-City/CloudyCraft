@@ -1,5 +1,7 @@
 #pragma once
 
+class Vector2Int;
+
 class Vector2
 {
 public:
@@ -7,6 +9,7 @@ public:
 	Vector2();
 	Vector2(float initialX, float initialY);
 	Vector2(const Vector2& other);
+	Vector2(const Vector2Int& other);
 	void SetXY(float newX, float newY);
 
 	//FUNCTIONS//////////////////////////////////////////////////////////////////////////

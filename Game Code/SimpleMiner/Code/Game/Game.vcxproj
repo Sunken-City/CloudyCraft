@@ -180,6 +180,8 @@
     <ClInclude Include="World.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\..\Run_Win32\Data\Shaders\fvfPortal.frag" />
+    <None Include="..\..\Run_Win32\Data\Shaders\fvfPortal.vert" />
     <None Include="Block.inl" />
     <None Include="BlockInfo.inl" />
     <None Include="Chunk.inl" />

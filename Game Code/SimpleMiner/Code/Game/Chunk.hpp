@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Engine/Renderer/MeshRenderer.hpp"
 #include "Game/Block.hpp"
 #include "GameCommon.hpp"
 #include <vector>
@@ -78,6 +79,7 @@ public:
 
 private:
 	Block m_blocks[BLOCKS_PER_CHUNK];
+	MeshRenderer* m_meshRenderer;
 	int m_vboID;
 	int m_numVerts;
 };

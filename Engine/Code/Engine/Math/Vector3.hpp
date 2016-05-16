@@ -2,6 +2,7 @@
 
 class Vector3Int;
 class Vector2;
+class Vector4;
 
 class Vector3
 {
@@ -11,6 +12,7 @@ public:
 	Vector3(float initialValue);
 	Vector3(float initialX, float initialY, float initialZ);
 	Vector3(const Vector3& other);
+	Vector3(const Vector4& other);
 	Vector3(const Vector3Int& other);
 	void SetXYZ(float newX, float newY, float newZ);
 
@@ -63,6 +65,14 @@ inline Vector3 operator*(Vector3 lhs, const float& scalarConstant)
 	lhs *= scalarConstant;
 	return lhs;
 }
+
+//----------------------------------------------------------------------
+inline Vector3 operator*(const float& scalarConstant, Vector3 rhs)
+{
+	rhs *= scalarConstant;
+	return rhs;
+}
+
 
 //----------------------------------------------------------------------
 inline bool operator==(const Vector3& lhs, const Vector3& rhs)
