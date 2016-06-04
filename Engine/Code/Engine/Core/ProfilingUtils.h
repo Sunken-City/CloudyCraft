@@ -1,4 +1,5 @@
 #pragma once
+#include "Engine/Core/Memory/UntrackedAllocator.hpp"
 #include <chrono>
 #include <vector>
 
@@ -25,7 +26,8 @@ void ResetStats();
 ProfilingID RegisterProfilingChannel();
 void StartTiming(ProfilingID id);
 void EndTiming(ProfilingID id);
+void CleanUpProfilingUtils();
 
-extern std::chrono::high_resolution_clock::time_point profilingStartTime;
-extern std::chrono::high_resolution_clock::time_point profilingEndTime;
-extern std::vector<TimingInfo> profilingResults;
+extern std::chrono::high_resolution_clock::time_point g_profilingStartTime;
+extern std::chrono::high_resolution_clock::time_point g_profilingEndTime;
+extern std::vector<TimingInfo, UntrackedAllocator<TimingInfo>> g_profilingResults;

@@ -3,16 +3,19 @@
 #include <map>
 #include <string>
 #include "Engine\Renderer\RGBA.hpp"
+#include "Engine\Core\Memory\UntrackedAllocator.hpp"
+#include "Engine\Core\Memory\MemoryTracking.hpp"
+
 //-----------------------------------------------------------------------------------------------
 #define UNUSED(x) (void)(x);
 
 class Command;
 class BitmapFont;
-typedef void(*ConsoleCommandFunctionPointer)(Command&);
+typedef void(*ConsoleCommandFunctionPointer)(Command&); 
 
 //Used for quitting the application, bound to our Main_Win32.cpp; remove this if we aren't using it anymore.
 extern bool g_isQuitting;
-extern std::map<std::string, ConsoleCommandFunctionPointer>* g_consoleCommands;
+extern std::map<size_t, ConsoleCommandFunctionPointer, std::less<size_t>, UntrackedAllocator<std::pair<size_t, ConsoleCommandFunctionPointer>>>* g_consoleCommands;
 
 //----------------------------------------------------------------------------------------------
 struct ColoredText
@@ -91,7 +94,7 @@ public:
 	{
 		if (!g_consoleCommands)
 		{
-			g_consoleCommands = new std::map<std::string, ConsoleCommandFunctionPointer>();
+			g_consoleCommands = UntrackedNew<std::map<size_t, ConsoleCommandFunctionPointer, std::less<size_t>, UntrackedAllocator<std::pair<size_t, ConsoleCommandFunctionPointer>>>>();
 		}
 		Console::RegisterCommand(name, command);
 	}

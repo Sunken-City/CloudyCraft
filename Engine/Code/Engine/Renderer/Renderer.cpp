@@ -25,6 +25,8 @@
 #include "Engine/Input/InputOutputUtils.hpp"
 #include "Engine/Core/StringUtils.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
+#include "Engine/Core/BuildConfig.hpp"
+#include "Engine/Core/Memory/MemoryTracking.hpp"
 #include "Engine/Time/Time.hpp"
 
 #pragma comment( lib, "opengl32" ) // Link in the OpenGL32.lib static library
@@ -142,25 +144,7 @@ void Renderer::RotateView(float degrees, const Vector3& axis)
 {
     //From page 111 in Chapter 8 of 3D Math Primer for Graphics and Game Development
     Matrix4x4 rotation = Matrix4x4::IDENTITY;
-    float cosineDegrees = MathUtils::CosDegrees(degrees);
-    float sineDegrees = MathUtils::SinDegrees(degrees);
-    float oneMinusCosineDegrees = (1.0f - cosineDegrees);
-    rotation.data[0] = (axis.x * axis.x) * oneMinusCosineDegrees + cosineDegrees;
-    rotation.data[1] = (axis.x * axis.y) * oneMinusCosineDegrees - (axis.z * sineDegrees);
-    rotation.data[2] = (axis.x * axis.z) * oneMinusCosineDegrees + (axis.y * sineDegrees);
-    rotation.data[3] = 0;
-    rotation.data[4] = (axis.x * axis.y) * oneMinusCosineDegrees + (axis.z * sineDegrees);
-    rotation.data[5] = (axis.y * axis.y) * oneMinusCosineDegrees + cosineDegrees;
-    rotation.data[6] = (axis.y * axis.z) * oneMinusCosineDegrees - (axis.x * sineDegrees);
-    rotation.data[7] = 0;
-    rotation.data[8] = (axis.x * axis.z) * oneMinusCosineDegrees - (axis.y * sineDegrees);	
-    rotation.data[9] = (axis.y * axis.z) * oneMinusCosineDegrees + (axis.x * sineDegrees);
-    rotation.data[10] = (axis.z * axis.z) * oneMinusCosineDegrees + cosineDegrees;
-    rotation.data[11] = 0;
-    rotation.data[12] = 0;
-    rotation.data[13] = 0;
-    rotation.data[14] = 0;
-    rotation.data[15] = 1;
+    rotation.Rotate(degrees, axis);
     PushView(rotation);
 }
 
@@ -319,6 +303,18 @@ void Renderer::EnableDepthTest(bool usingDepthTest)
 }
 
 //-----------------------------------------------------------------------------------
+void Renderer::EnableDepthWrite()
+{
+    glDepthMask(true);
+}
+
+//-----------------------------------------------------------------------------------
+void Renderer::DisableDepthWrite()
+{
+    glDepthMask(false);
+}
+
+//-----------------------------------------------------------------------------------
 void Renderer::BindTexture(const Texture& texture)
 {
     glEnable(GL_TEXTURE_2D);
@@ -337,6 +333,9 @@ int Renderer::GenerateBufferID()
 {
     GLuint vboID = 0;
     glGenBuffers(1, &vboID);
+    #if defined(TRACK_MEMORY)
+        g_memoryAnalytics.TrackRenderBufferAllocation();
+    #endif
     return vboID;
 }
 
@@ -345,6 +344,9 @@ void Renderer::DeleteBuffers(int vboID)
 {
     const GLuint id = ((GLuint)vboID);
     glDeleteBuffers(1, &id);
+    #if defined(TRACK_MEMORY)
+        g_memoryAnalytics.TrackRenderBufferFree();
+    #endif
 }
 
 //-----------------------------------------------------------------------------------
@@ -594,6 +596,9 @@ GLuint Renderer::GenerateVAOHandle()
     GLuint vaoID;
     glGenVertexArrays(1, &vaoID);
     ASSERT_OR_DIE(vaoID != NULL, "VAO was null");
+    #if defined(TRACK_MEMORY)
+        g_memoryAnalytics.TrackVAOAllocation();
+    #endif
     return vaoID;
 }
 
@@ -601,6 +606,9 @@ GLuint Renderer::GenerateVAOHandle()
 void Renderer::DeleteVAOHandle(GLuint vaoID)
 {
     glDeleteVertexArrays(1, &vaoID);
+    #if defined(TRACK_MEMORY)
+        g_memoryAnalytics.TrackVAOFree();
+    #endif
 }
 
 //-----------------------------------------------------------------------------------
@@ -626,6 +634,10 @@ GLuint Renderer::RenderBufferCreate(void* data, size_t count, size_t elementSize
     glBufferData(GL_ARRAY_BUFFER, count * elementSize, data, usage);
     glBindBuffer(GL_ARRAY_BUFFER, NULL);
 
+    #if defined(TRACK_MEMORY)
+        g_memoryAnalytics.TrackRenderBufferAllocation();
+    #endif
+
     return buffer;
 }
 
@@ -633,6 +645,10 @@ GLuint Renderer::RenderBufferCreate(void* data, size_t count, size_t elementSize
 void Renderer::RenderBufferDestroy(GLuint buffer)
 {
     glDeleteBuffers(1, &buffer);
+
+    #if defined(TRACK_MEMORY)
+        g_memoryAnalytics.TrackRenderBufferFree();
+    #endif
 }
 
 //-----------------------------------------------------------------------------------
@@ -650,6 +666,12 @@ int Renderer::CreateSampler(GLenum min_filter, //fragment counts for more than o
     glSamplerParameteri(id, GL_TEXTURE_WRAP_T, vWrap);
 
     return id;
+}
+
+//-----------------------------------------------------------------------------------
+void Renderer::DeleteSampler(GLuint id)
+{
+    glDeleteSamplers(1, &id);
 }
 
 void Renderer::GLCheckError(const char* file, size_t line)

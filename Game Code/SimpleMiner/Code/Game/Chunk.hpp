@@ -80,7 +80,6 @@ public:
 private:
 	Block m_blocks[BLOCKS_PER_CHUNK];
 	MeshRenderer* m_meshRenderer;
-	int m_vboID;
 	int m_numVerts;
 };
 

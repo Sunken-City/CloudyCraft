@@ -14,6 +14,7 @@ struct RenderState
     {
         ON,
         OFF,
+        DISABLE_WRITE,
         //XRAY,
         NUM_MODES
     };
@@ -54,7 +55,7 @@ public:
     //CONSTRUCTORS//////////////////////////////////////////////////////////////////////////
     Material() {};
     Material(ShaderProgram* program, const RenderState& renderState);
-    ~Material() {};
+    ~Material();
 
     //FUNCTIONS//////////////////////////////////////////////////////////////////////////
     void SetMatrices(const Matrix4x4& model, const Matrix4x4& view, const Matrix4x4& projection);
@@ -83,11 +84,12 @@ public:
     
     //MEMBER VARIABLES//////////////////////////////////////////////////////////////////////////
     ShaderProgram* m_shaderProgram;
+    RenderState m_renderState;
+
 private:
     unsigned int m_samplerID;
     unsigned int m_diffuseID;
     unsigned int m_normalID;
     unsigned int m_emissiveID;
     unsigned int m_noiseID;
-    RenderState m_renderState;
 };

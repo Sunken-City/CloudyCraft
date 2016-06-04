@@ -17,8 +17,8 @@
 //-----------------------------------------------------------------------------------
 Mesh::Mesh()
     : m_drawMode(Renderer::DrawMode::TRIANGLES)
-	, m_vbo(0)
-	, m_ibo(0)
+    , m_vbo(0)
+    , m_ibo(0)
 {
 
 }
@@ -26,14 +26,14 @@ Mesh::Mesh()
 //-----------------------------------------------------------------------------------
 Mesh::~Mesh()
 {
-	if (m_vbo != 0)
-	{
-		Renderer::instance->DeleteBuffers(m_vbo);
-	}
-	if (m_ibo != 0)
-	{
-		Renderer::instance->RenderBufferDestroy(m_ibo);
-	}
+    if (m_vbo != 0)
+    {
+        Renderer::instance->DeleteBuffers(m_vbo);
+    }
+    if (m_ibo != 0)
+    {
+        Renderer::instance->RenderBufferDestroy(m_ibo);
+    }
 }
 
 //-----------------------------------------------------------------------------------
@@ -52,23 +52,23 @@ void Mesh::RenderFromIBO(GLuint vaoID, Material* material) const
 //-----------------------------------------------------------------------------------
 void Mesh::Init(void* vertexData, unsigned int numVertices, unsigned int sizeofVertex, void* indexData, unsigned int numIndices, BindMeshToVAOForVertex* BindMeshFunction)
 {
-	m_numVerts = numVertices;
-	m_numIndices = numIndices;
-	m_vertexBindFunctionPointer = BindMeshFunction;
-	m_vbo = Renderer::instance->GenerateBufferID();
-	GL_CHECK_ERROR();
-	glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeofVertex * numVertices, vertexData, GL_STATIC_DRAW);
-	glBindBuffer(GL_ARRAY_BUFFER, NULL);
-	GL_CHECK_ERROR();
-	m_ibo = Renderer::instance->RenderBufferCreate(indexData, numIndices, sizeof(unsigned int), GL_STATIC_DRAW);
-	GL_CHECK_ERROR();
+    m_numVerts = numVertices;
+    m_numIndices = numIndices;
+    m_vertexBindFunctionPointer = BindMeshFunction;
+    m_vbo = Renderer::instance->GenerateBufferID();
+    GL_CHECK_ERROR();
+    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeofVertex * numVertices, vertexData, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, NULL);
+    GL_CHECK_ERROR();
+    m_ibo = Renderer::instance->RenderBufferCreate(indexData, numIndices, sizeof(unsigned int), GL_STATIC_DRAW);
+    GL_CHECK_ERROR();
 }
 
 //-----------------------------------------------------------------------------------
 void Mesh::BindToVAO(GLuint vaoID, ShaderProgram* shaderProgram)
 {
-	m_vertexBindFunctionPointer(vaoID, m_vbo, m_ibo, shaderProgram);
+    m_vertexBindFunctionPointer(vaoID, m_vbo, m_ibo, shaderProgram);
 }
 
 

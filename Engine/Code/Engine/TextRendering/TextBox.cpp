@@ -33,7 +33,7 @@ TextBox::~TextBox()
         delete m_borderRenderer->m_mesh;
         delete m_borderRenderer;
     }
-    m_textRenderers.clear();
+    DeleteTextRenderers();
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -160,15 +160,7 @@ static void SetEffectProperties(Material* mat, const StringEffectFragment& frag)
 void TextBox::ConstructMeshes()
 {
     //Delete if already initialized
-    for (MeshRenderer* renderer : m_textRenderers)
-    {
-        delete renderer->m_mesh;
-        delete renderer->m_material->m_shaderProgram;
-        delete renderer->m_material;
-        delete renderer;
-        renderer = nullptr;
-    }
-    m_textRenderers.clear();
+    DeleteTextRenderers();
     float totalStringWidth = 0.f;
     std::vector<float>lineWidths;
     float currLineWidth = 0.f;
@@ -227,6 +219,20 @@ void TextBox::InitializeBorder()
     builder.AddLine(br, br + (m_upVector * m_height));
     m_borderRenderer = new MeshRenderer(new Mesh(), Renderer::instance->m_defaultMaterial);
     builder.CopyToMesh(m_borderRenderer->m_mesh, &Vertex_PCT::Copy, sizeof(Vertex_PCT), &Vertex_PCT::BindMeshToVAO);
+}
+
+//-----------------------------------------------------------------------------------
+void TextBox::DeleteTextRenderers()
+{
+    for (MeshRenderer* renderer : m_textRenderers)
+    {
+        delete renderer->m_mesh;
+        delete renderer->m_material->m_shaderProgram;
+        delete renderer->m_material;
+        delete renderer;
+        renderer = nullptr;
+    }
+    m_textRenderers.clear();
 }
 
 //-----------------------------------------------------------------------------------------------

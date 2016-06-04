@@ -18,7 +18,6 @@ Chunk::Chunk(const ChunkCoords& chunkCoords, World* world)
 , m_northChunk(nullptr)
 , m_isDirty(false)
 , m_world(world)
-, m_vboID(0)
 , m_numVerts(0)
 , m_meshRenderer(nullptr)
 {
@@ -38,7 +37,6 @@ Chunk::Chunk(const ChunkCoords& chunkCoords, std::vector<unsigned char>& data, W
 , m_northChunk(nullptr)
 , m_isDirty(false)
 , m_world(world)
-, m_vboID(0)
 , m_numVerts(0)
 , m_meshRenderer(nullptr)
 {
@@ -52,7 +50,12 @@ Chunk::Chunk(const ChunkCoords& chunkCoords, std::vector<unsigned char>& data, W
 Chunk::~Chunk()
 {
     DebuggerPrintf("[%i] World [%i]: Deleting Chunk %i,%i\n", g_frameNumber, m_world->m_worldID, m_chunkPosition.x, m_chunkPosition.y);
-    Renderer::instance->DeleteBuffers(m_vboID);
+    if (m_meshRenderer)
+    {
+        delete m_meshRenderer->m_mesh;
+        delete m_meshRenderer;
+        m_meshRenderer = nullptr;
+    }
 }
 
 //-----------------------------------------------------------------------------------
@@ -92,7 +95,7 @@ void Chunk::CalculateSkyLighting()
                 Block* currentBlock = info.GetBlock();
                 if (currentBlock->GetDefinition()->m_opacity != RGBA(0x00000000))
                 {
-                    info = BlockInfo::INVALID_BLOCK;
+                    info = BlockInfo::INVALID_BLOCKINFO;
                 }
                 else
                 {
@@ -115,7 +118,7 @@ void Chunk::CalculateSkyLighting()
                 uchar blockType = currentBlock->m_type;
                 if (BlockDefinition::GetDefinition(blockType)->m_isOpaque)
                 {
-                    info = BlockInfo::INVALID_BLOCK;
+                    info = BlockInfo::INVALID_BLOCKINFO;
                 }
                 else
                 {
@@ -184,6 +187,7 @@ LocalCoords Chunk::GetLocalCoordsFromWorldCoords(const WorldCoords &coords) cons
     }
     return localCoords; 
 }
+
 //-----------------------------------------------------------------------------------
 LocalCoords Chunk::GetLocalCoordsFromWorldPosition(const WorldPosition &pos) const
 {
@@ -277,7 +281,7 @@ void Chunk::GenerateVertexArray()
         static const float uvStepSize = bottomTex.maxs.x - bottomTex.mins.x;
 
         Block* belowBlock = GetBelow(i);
-        if (belowBlock && !BlockDefinition::GetDefinition(belowBlock->m_type)->m_isOpaque)
+        if (belowBlock && (!BlockDefinition::GetDefinition(belowBlock->m_type)->m_isOpaque || currentBlock.HasBelowPortal() || belowBlock->HasAbovePortal()))
         {
             float isPortal = currentBlock.HasBelowPortal() ? 1.0f : 0.0f;
             AABB2& textureCoords = bottomTex;
@@ -296,7 +300,7 @@ void Chunk::GenerateVertexArray()
         }
 
         Block* aboveBlock = GetAbove(i);
-        if (aboveBlock && !BlockDefinition::GetDefinition(aboveBlock->m_type)->m_isOpaque)
+        if (aboveBlock && (!BlockDefinition::GetDefinition(aboveBlock->m_type)->m_isOpaque || currentBlock.HasAbovePortal() || aboveBlock->HasBelowPortal()))
         {
             float isPortal = currentBlock.HasAbovePortal() ? 1.0f : 0.0f;
             AABB2& textureCoords = topTex;
@@ -315,7 +319,7 @@ void Chunk::GenerateVertexArray()
         }
 
         Block* westBlock = GetWest(i);
-        if (westBlock && !BlockDefinition::GetDefinition(westBlock->m_type)->m_isOpaque)
+        if (westBlock && (!BlockDefinition::GetDefinition(westBlock->m_type)->m_isOpaque || currentBlock.HasWestPortal() || westBlock->HasEastPortal()))
         {
             float isPortal = currentBlock.HasWestPortal() ? 1.0f : 0.0f;
             AABB2& textureCoords = sideTex;
@@ -334,7 +338,7 @@ void Chunk::GenerateVertexArray()
         }
 
         Block* eastBlock = GetEast(i);
-        if (eastBlock && !BlockDefinition::GetDefinition(eastBlock->m_type)->m_isOpaque)
+        if (eastBlock && (!BlockDefinition::GetDefinition(eastBlock->m_type)->m_isOpaque || currentBlock.HasEastPortal() || eastBlock->HasWestPortal()))
         {
             float isPortal = currentBlock.HasEastPortal() ? 1.0f : 0.0f;
             AABB2& textureCoords = sideTex;
@@ -353,7 +357,7 @@ void Chunk::GenerateVertexArray()
         }
 
         Block* southBlock = GetSouth(i);
-        if (southBlock && !BlockDefinition::GetDefinition(southBlock->m_type)->m_isOpaque)
+        if (southBlock && (!BlockDefinition::GetDefinition(southBlock->m_type)->m_isOpaque || currentBlock.HasSouthPortal() || southBlock->HasNorthPortal()))
         {
             float isPortal = currentBlock.HasSouthPortal() ? 1.0f : 0.0f;
             AABB2& textureCoords = sideTex;
@@ -372,7 +376,7 @@ void Chunk::GenerateVertexArray()
         }
 
         Block* northBlock = GetNorth(i);
-        if (northBlock && !BlockDefinition::GetDefinition(northBlock->m_type)->m_isOpaque)
+        if (northBlock && (!BlockDefinition::GetDefinition(northBlock->m_type)->m_isOpaque || currentBlock.HasNorthPortal() || northBlock->HasSouthPortal()))
         {
             float isPortal = currentBlock.HasNorthPortal() ? 1.0f : 0.0f;
             AABB2& textureCoords = sideTex;
@@ -395,7 +399,7 @@ void Chunk::GenerateVertexArray()
     for (int i = 0; i < BLOCKS_PER_CHUNK; i++)
     {
         Block currentBlock = m_blocks[i];
-        if (currentBlock.GetDefinition()->m_isOpaque || currentBlock.m_type == BlockType::AIR)
+        if (!currentBlock.IsPortal(NUM_DIRECTIONS) && (currentBlock.GetDefinition()->m_isOpaque || currentBlock.m_type == BlockType::AIR))
         {
             continue;
         }
@@ -415,9 +419,11 @@ void Chunk::GenerateVertexArray()
         {
             Block* belowBlock = belowInfo.GetBlock();
             BlockDefinition* belowType = belowBlock->GetDefinition();
-            if (belowBlock && !belowType->m_isOpaque && belowBlock->m_type != currentBlock.m_type)
+            if (belowBlock && ((!belowType->m_isOpaque && belowBlock->m_type != currentBlock.m_type) || currentBlock.HasBelowPortal()))
             {
-                builder.SetColor(currentBlock.HasBelowPortal() ? RGBA::VAPORWAVE : RGBA(belowBlock->GetDampedLightValue(0x33)));
+                float isPortal = currentBlock.HasBelowPortal() ? 1.0f : 0.0f;
+                builder.SetFloatData0(Vector4(isPortal, 0.0f, 0.0f, 0.0f));
+                builder.SetColor(RGBA(belowBlock->GetDampedLightValue(0x33)));
                 builder.SetUV(bottomTex.mins);
                 builder.AddVertex(Vector3(coords.x, coords.y, coords.z));
                 builder.SetUV(Vector2(bottomTex.maxs.x, bottomTex.mins.y));
@@ -436,9 +442,11 @@ void Chunk::GenerateVertexArray()
         {
             Block* aboveBlock = aboveInfo.GetBlock();
             BlockDefinition* aboveType = aboveBlock->GetDefinition();
-            if (aboveBlock && !aboveType->m_isOpaque && aboveBlock->m_type != currentBlock.m_type)
+            if (aboveBlock && ((!aboveType->m_isOpaque && aboveBlock->m_type != currentBlock.m_type) || currentBlock.HasAbovePortal()))
             {
-                builder.SetColor(currentBlock.HasBelowPortal() ? RGBA::VAPORWAVE : RGBA(aboveBlock->GetDampedLightValue(0x00)));
+                float isPortal = currentBlock.HasAbovePortal() ? 1.0f : 0.0f;
+                builder.SetFloatData0(Vector4(isPortal, 0.0f, 0.0f, 0.0f));
+                builder.SetColor(RGBA(aboveBlock->GetDampedLightValue(0x00)));
                 builder.SetUV(Vector2(topTex.mins.x, topTex.mins.y));
                 builder.AddVertex(Vector3(coords.x, coords.y, coords.z + blockSize));
                 builder.SetUV(Vector2(topTex.maxs.x, topTex.mins.y));
@@ -457,9 +465,11 @@ void Chunk::GenerateVertexArray()
         {
             Block* westBlock = westInfo.GetBlock();
             BlockDefinition* westType = westBlock->GetDefinition();
-            if (westBlock && !westType->m_isOpaque && westBlock->m_type != currentBlock.m_type)
+            if (westBlock && ((!westType->m_isOpaque && westBlock->m_type != currentBlock.m_type) || currentBlock.HasWestPortal()))
             {
-                builder.SetColor(currentBlock.HasBelowPortal() ? RGBA::VAPORWAVE : RGBA(westBlock->GetDampedLightValue(0x22)));
+                float isPortal = currentBlock.HasWestPortal() ? 1.0f : 0.0f;
+                builder.SetFloatData0(Vector4(isPortal, 0.0f, 0.0f, 0.0f));
+                builder.SetColor(RGBA(westBlock->GetDampedLightValue(0x22)));
                 builder.SetUV(Vector2(sideTex.mins.x, sideTex.mins.y));
                 builder.AddVertex(Vector3(coords.x, coords.y + blockSize, coords.z));
                 builder.SetUV(Vector2(sideTex.maxs.x, sideTex.mins.y));
@@ -478,9 +488,11 @@ void Chunk::GenerateVertexArray()
         {
             Block* eastBlock = eastInfo.GetBlock();
             BlockDefinition* eastType = eastBlock->GetDefinition();
-            if (eastBlock && !eastType->m_isOpaque && eastBlock->m_type != currentBlock.m_type)
+            if (eastBlock && ((!eastType->m_isOpaque && eastBlock->m_type != currentBlock.m_type) || currentBlock.HasEastPortal()))
             {
-                builder.SetColor(currentBlock.HasBelowPortal() ? RGBA::VAPORWAVE : RGBA(eastBlock->GetDampedLightValue(0x22)));
+                float isPortal = currentBlock.HasEastPortal() ? 1.0f : 0.0f;
+                builder.SetFloatData0(Vector4(isPortal, 0.0f, 0.0f, 0.0f));
+                builder.SetColor(RGBA(eastBlock->GetDampedLightValue(0x22)));
                 builder.SetUV(Vector2(sideTex.mins.x, sideTex.mins.y));
                 builder.AddVertex(Vector3(coords.x + blockSize, coords.y, coords.z));
                 builder.SetUV(Vector2(sideTex.maxs.x, sideTex.mins.y));
@@ -499,9 +511,11 @@ void Chunk::GenerateVertexArray()
         {
             Block* southBlock = southInfo.GetBlock();
             BlockDefinition* southType = southBlock->GetDefinition();
-            if (southBlock && !southType->m_isOpaque && southBlock->m_type != currentBlock.m_type)
+            if (southBlock && ((!southType->m_isOpaque && southBlock->m_type != currentBlock.m_type) || currentBlock.HasSouthPortal()))
             {
-                builder.SetColor(currentBlock.HasBelowPortal() ? RGBA::VAPORWAVE : RGBA(southBlock->GetDampedLightValue(0x11)));
+                float isPortal = currentBlock.HasSouthPortal() ? 1.0f : 0.0f;
+                builder.SetFloatData0(Vector4(isPortal, 0.0f, 0.0f, 0.0f));
+                builder.SetColor(RGBA(southBlock->GetDampedLightValue(0x11)));
                 builder.SetUV(Vector2(sideTex.mins.x, sideTex.mins.y));
                 builder.AddVertex(Vector3(coords.x, coords.y, coords.z));
                 builder.SetUV(Vector2(sideTex.maxs.x, sideTex.mins.y));
@@ -520,9 +534,11 @@ void Chunk::GenerateVertexArray()
         {
             Block* northBlock = northInfo.GetBlock();
             BlockDefinition* northType = northBlock->GetDefinition();
-            if (northBlock && !northType->m_isOpaque && northBlock->m_type != currentBlock.m_type)
+            if (northBlock && ((!northType->m_isOpaque && northBlock->m_type != currentBlock.m_type) || currentBlock.HasNorthPortal()))
             {
-                builder.SetColor(currentBlock.HasBelowPortal() ? RGBA::VAPORWAVE : RGBA(northBlock->GetDampedLightValue(0x11)));
+                float isPortal = currentBlock.HasNorthPortal() ? 1.0f : 0.0f;
+                builder.SetFloatData0(Vector4(isPortal, 0.0f, 0.0f, 0.0f));
+                builder.SetColor(RGBA(northBlock->GetDampedLightValue(0x11)));
                 builder.SetUV(Vector2(sideTex.mins.x, sideTex.mins.y));
                 builder.AddVertex(Vector3(coords.x + blockSize, coords.y + blockSize, coords.z));
                 builder.SetUV(Vector2(sideTex.maxs.x, sideTex.mins.y));

@@ -33,6 +33,9 @@ void RenderState::SetState() const
     case DepthTestingMode::ON:
         Renderer::instance->EnableDepthTest(true);
         break;
+    case DepthTestingMode::DISABLE_WRITE:
+        Renderer::instance->DisableDepthWrite();
+        break;
     default:
         break;
     }
@@ -70,6 +73,7 @@ void RenderState::ClearState() const
     Renderer::instance->EnableDepthTest(true);
     Renderer::instance->EnableFaceCulling(true);
     Renderer::instance->EnableAlphaBlending();
+    Renderer::instance->EnableDepthWrite();
 }
 
 //-----------------------------------------------------------------------------------
@@ -79,6 +83,12 @@ Material::Material(ShaderProgram* program, const RenderState& renderState)
     , m_renderState(renderState)
 {
 
+}
+
+//-----------------------------------------------------------------------------------
+Material::~Material()
+{
+    Renderer::instance->DeleteSampler(m_samplerID);
 }
 
 //-----------------------------------------------------------------------------------

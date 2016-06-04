@@ -17,13 +17,24 @@
 #define STATIC // Do-nothing indicator that method/member is static in class definition
 
 //---------------------------------------------------------------------------
-STATIC std::map<std::string, Texture*> Texture::s_textureRegistry;
+STATIC std::map<size_t, Texture*, std::less<size_t>, UntrackedAllocator<std::pair<size_t, Texture*>>> Texture::s_textureRegistry;
+
+//-----------------------------------------------------------------------------------
+STATIC void Texture::CleanUpTextureRegistry()
+{
+    for (auto texturePair : s_textureRegistry)
+    {
+        delete texturePair.second;
+    }
+    s_textureRegistry.clear();
+}
 
 //---------------------------------------------------------------------------
-Texture::Texture( const std::string& imageFilePath )
-    : m_openglTextureID( 0 )
-    , m_texelSize( 0, 0 )
+Texture::Texture(const std::string& imageFilePath)
+    : m_openglTextureID(0)
+    , m_texelSize(0, 0)
     , m_imageData(nullptr)
+    , m_initializationMethod(TextureInitializationMethod::FROM_DISK)
     , m_textureFormat(TextureFormat::NUM_FORMATS)
 {
     int numComponents = 0; // Filled in for us to indicate how many color/alpha components the image had (e.g. 3=RGB, 4=RGBA)
@@ -74,10 +85,11 @@ Texture::Texture( const std::string& imageFilePath )
 
 //-----------------------------------------------------------------------------------
 Texture::Texture(unsigned char* textureData, int numColorComponents, const Vector2Int& texelSize)
-: m_openglTextureID(0)
-, m_texelSize(texelSize.x, texelSize.y)
-, m_imageData(textureData)
-, m_textureFormat(TextureFormat::NUM_FORMATS)
+    : m_openglTextureID(0)
+    , m_texelSize(texelSize.x, texelSize.y)
+    , m_imageData(textureData)
+    , m_initializationMethod(TextureInitializationMethod::FROM_MEMORY)
+    , m_textureFormat(TextureFormat::NUM_FORMATS)
 {
     int numComponents = numColorComponents; // Filled in for us to indicate how many color/alpha components the image had (e.g. 3=RGB, 4=RGBA)
 
@@ -124,6 +136,9 @@ Texture::Texture(unsigned char* textureData, int numColorComponents, const Vecto
 }
 
 Texture::Texture(uint32_t width, uint32_t height, TextureFormat format)
+    : m_initializationMethod(TextureInitializationMethod::FROM_MEMORY)
+    , m_texelSize(width, height)
+    , m_textureFormat(format)
 {
     glGenTextures(1, &m_openglTextureID);
     GLenum bufferChannels = GL_RGBA;
@@ -163,9 +178,6 @@ Texture::Texture(uint32_t width, uint32_t height, TextureFormat format)
         NULL);	//no actual data passed in, defaults black/white
 
     GL_CHECK_ERROR();
-    m_texelSize.x = width;
-    m_texelSize.y = height;
-    m_textureFormat = format;
 }
 
 //-----------------------------------------------------------------------------------
@@ -177,7 +189,23 @@ unsigned char* Texture::GetImageData()
 //-----------------------------------------------------------------------------------
 Texture::~Texture()
 {
-    stbi_image_free(m_imageData);
+    glDeleteTextures(1, &m_openglTextureID);
+    if (m_imageData)
+    {
+        switch (m_initializationMethod)
+        {
+        //We have an additional step for STBI loaded images
+        case TextureInitializationMethod::FROM_DISK:
+            stbi_image_free(m_imageData);
+            break;
+        case TextureInitializationMethod::FROM_MEMORY:
+            break;
+        case TextureInitializationMethod::NUM_INITIALIZATION_METHODS:
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -186,7 +214,8 @@ Texture::~Texture()
 //
 STATIC Texture* Texture::GetTextureByName(const std::string& imageFilePath)
 {
-    auto iterator = Texture::s_textureRegistry.find(imageFilePath);
+    size_t filePathHash = std::hash<std::string>{}(imageFilePath);
+    auto iterator = Texture::s_textureRegistry.find(filePathHash);
     if (iterator == Texture::s_textureRegistry.end())
     {
         return nullptr;
@@ -213,7 +242,8 @@ STATIC Texture* Texture::CreateOrGetTexture(const std::string& imageFilePath)
     else
     {
         texture = new Texture(imageFilePath);
-        Texture::s_textureRegistry[imageFilePath] = texture;
+        size_t filePathHash = std::hash<std::string>{}(imageFilePath);
+        Texture::s_textureRegistry[filePathHash] = texture;
         return texture;
     }
 }
@@ -222,7 +252,8 @@ STATIC Texture* Texture::CreateOrGetTexture(const std::string& imageFilePath)
 Texture* Texture::CreateTextureFromData(const std::string& textureName, unsigned char* textureData, int numComponents, const Vector2Int& texelSize)
 {
     Texture* texture = new Texture(textureData, numComponents, texelSize);
-    Texture::s_textureRegistry[textureName] = texture;
+    size_t stringHash = std::hash<std::string>{}(textureName);
+    Texture::s_textureRegistry[stringHash] = texture;
     return texture;
 }
 

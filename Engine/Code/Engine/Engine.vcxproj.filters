@@ -36,6 +36,9 @@
     <Filter Include="Engine\TextRendering">
       <UniqueIdentifier>{d372a83a-ef56-4116-b49a-c12ad2e02ac7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\Core\Memory">
+      <UniqueIdentifier>{6986eaf3-b631-4cd8-b645-2b7905c70be5}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Math\Vector2.cpp">
@@ -49,9 +52,6 @@
     </ClCompile>
     <ClCompile Include="Input\XInputController.cpp">
       <Filter>Engine\Input</Filter>
-    </ClCompile>
-    <ClCompile Include="Renderer\TheRenderer.cpp">
-      <Filter>Engine\Renderer</Filter>
     </ClCompile>
     <ClCompile Include="Math\Vector2Int.cpp">
       <Filter>Engine\Math</Filter>
@@ -195,6 +195,15 @@
     <ClCompile Include="Math\Dice.cpp">
       <Filter>Engine\Math</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Memory\MemoryTracking.cpp">
+      <Filter>Engine\Core\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Memory\Callstack.cpp">
+      <Filter>Engine\Core\Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Memory\MemoryOutputWindow.cpp">
+      <Filter>Engine\Core\Memory</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Math\Vector2.hpp">
@@ -208,9 +217,6 @@
     </ClInclude>
     <ClInclude Include="Input\XInputController.hpp">
       <Filter>Engine\Input</Filter>
-    </ClInclude>
-    <ClInclude Include="Renderer\TheRenderer.hpp">
-      <Filter>Engine\Renderer</Filter>
     </ClInclude>
     <ClInclude Include="Math\Vector2Int.hpp">
       <Filter>Engine\Math</Filter>
@@ -356,6 +362,21 @@
     </ClInclude>
     <ClInclude Include="Math\Dice.hpp">
       <Filter>Engine\Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\BuildConfig.hpp">
+      <Filter>Engine\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Memory\MemoryTracking.hpp">
+      <Filter>Engine\Core\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Memory\Callstack.hpp">
+      <Filter>Engine\Core\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Memory\UntrackedAllocator.hpp">
+      <Filter>Engine\Core\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Memory\MemoryOutputWindow.hpp">
+      <Filter>Engine\Core\Memory</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -19,7 +19,7 @@ inline BlockInfo World::GetBlockInfoFromWorldCoords(const WorldCoords& worldCoor
 	auto chunkData = m_activeChunks.find(chunkPosition);
 	if (chunkData == m_activeChunks.end())
 	{
-		return BlockInfo::INVALID_BLOCK;
+		return BlockInfo::INVALID_BLOCKINFO;
 	}
 	Chunk* chunk = chunkData->second;
 	LocalIndex index = chunk->GetBlockIndexFromWorldCoords(worldCoords);

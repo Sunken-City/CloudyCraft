@@ -121,7 +121,7 @@ void AudioSystem::StopSound(SoundID soundID)
 //---------------------------------------------------------------------------
 SoundID AudioSystem::CreateOrGetSound( const std::string& soundFileName )
 {
-	std::map< std::string, SoundID >::iterator found = m_registeredSoundIDs.find( soundFileName );
+	std::map<std::string, SoundID>::iterator found = m_registeredSoundIDs.find( soundFileName );
 	if( found != m_registeredSoundIDs.end() )
 	{
 		return found->second;

@@ -8,6 +8,8 @@
 #include "Engine/Core/StringUtils.hpp"
 #include "Engine/Input/InputOutputUtils.hpp"
 #include "Engine/Renderer/OpenGLExtensions.hpp"
+#include "Engine/Core/BuildConfig.hpp"
+#include "Engine/Core/Memory/MemoryTracking.hpp"
 
 //-----------------------------------------------------------------------------------
 ShaderProgram::ShaderProgram()
@@ -26,7 +28,9 @@ ShaderProgram::ShaderProgram(const char* vertShaderPath, const char* fragShaderP
 {
     ASSERT_OR_DIE(m_vertexShaderID != NULL && m_fragmentShaderID != NULL, "Error: Vertex or Fragment Shader was null");
     ASSERT_OR_DIE(m_shaderProgramID != NULL, "Error: Program linking id was null");
-    FindAllUniforms();
+    #if defined(TRACK_MEMORY)
+        g_memoryAnalytics.TrackShaderAllocation();
+    #endif
 }
 
 //-----------------------------------------------------------------------------------
@@ -35,6 +39,9 @@ ShaderProgram::~ShaderProgram()
     glDeleteShader(m_vertexShaderID);
     glDeleteShader(m_fragmentShaderID);
     glDeleteProgram(m_shaderProgramID);
+    #if defined(TRACK_MEMORY)
+        g_memoryAnalytics.TrackShaderFree();
+    #endif
 }
 
 //-----------------------------------------------------------------------------------
@@ -84,7 +91,7 @@ GLuint ShaderProgram::LoadShader(const char* filename, GLenum shader_type)
 
     //Todo: print errors if failed
 
-    free(fileBuffer);
+    delete fileBuffer;
     fileBuffer = nullptr;
     return shader_id;
 }

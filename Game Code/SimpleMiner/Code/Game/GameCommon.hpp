@@ -39,31 +39,7 @@ typedef unsigned char uchar;
 
 extern bool g_isQuitting;
 extern bool g_renderDebug;
-extern std::vector<Vertex_PCT> g_debugPoints;
 extern ProfilingID g_frameTimeProfiling;
 extern ProfilingID g_updateProfiling;
 extern ProfilingID g_renderProfiling;
 extern int g_frameNumber;
-
-//--------------------------------------------------------------------
-inline void AddDebugPoint(const Vector3& position, const RGBA& color)
-{
-	Vertex_PCT vertex;
-	vertex.pos = position;
-	vertex.color = color;
-	g_debugPoints.push_back(vertex);
-}
-
-//--------------------------------------------------------------------
-inline void DrawDebugPoints(float pointSize, bool enableDepthTesting)
-{
-	Renderer::instance->EnableDepthTest(enableDepthTesting);
-	Renderer::instance->SetPointSize(pointSize);
-	Renderer::instance->DrawVertexArray(g_debugPoints.data(), g_debugPoints.size(), Renderer::DrawMode::POINTS);
-}
-
-//--------------------------------------------------------------------
-inline void ClearDebugPoints()
-{
-	g_debugPoints.clear();
-}

@@ -35,6 +35,7 @@ private:
     void EvaluateLine(std::deque<StringEffectFragment>& currLine, std::deque<StringEffectFragment>& fragmentQueue);
     void ConstructMeshes();
     void InitializeBorder();
+    void DeleteTextRenderers();
 
     MeshRenderer* m_borderRenderer;
     //MeshRenderer* m_backgroundRenderer;

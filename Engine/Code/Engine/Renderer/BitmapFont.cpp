@@ -5,7 +5,7 @@
 #include "Engine/Core/StringUtils.hpp"
 #include "Engine/Core/ErrorWarningAssert.hpp"
 
-std::map< std::string, BitmapFont* > BitmapFont::s_fontRegistry;
+std::map<size_t, BitmapFont*, std::less<size_t>, UntrackedAllocator<std::pair<size_t, BitmapFont*>>> BitmapFont::s_fontRegistry;
 
 //-----------------------------------------------------------------------------------
 AABB2 BitmapFont::GetTexCoordsForGlyph(int glyphAscii) const
@@ -33,7 +33,8 @@ AABB2 BitmapFont::GetTexCoordsForGlyph(const Glyph& glyph) const
 //-----------------------------------------------------------------------------------
 BitmapFont* BitmapFont::GetFontByName(const std::string& imageFilePath)
 {
-    auto iterator = BitmapFont::s_fontRegistry.find(imageFilePath);
+    size_t filePathHash = std::hash<std::string>{}(imageFilePath);
+    auto iterator = BitmapFont::s_fontRegistry.find(filePathHash);
     if (iterator == BitmapFont::s_fontRegistry.end())
     {
         return nullptr;
@@ -57,7 +58,8 @@ BitmapFont* BitmapFont::CreateOrGetFont(const std::string& bitmapFontName)
         if (FileExists("Data/Fonts/" + bitmapFontName + ".png"))
         {
             font = new BitmapFont(bitmapFontName);
-            BitmapFont::s_fontRegistry[bitmapFontName] = font;
+            size_t fontNameHash = std::hash<std::string>{}(bitmapFontName);
+            BitmapFont::s_fontRegistry[fontNameHash] = font;
             return font;
         }
         else
@@ -80,7 +82,8 @@ BitmapFont* BitmapFont::CreateOrGetFontFromGlyphSheet(const std::string& bitmapF
         if (FileExists("Data/Fonts/" + bitmapFontName + "_0.png"))
         {
             font = new BitmapFont(bitmapFontName + "_0", bitmapFontName);
-            BitmapFont::s_fontRegistry[bitmapFontName] = font;
+            size_t fileNameHash = std::hash<std::string>{}(bitmapFontName);
+            BitmapFont::s_fontRegistry[fileNameHash] = font;
             return font;
         }
         else
@@ -88,6 +91,17 @@ BitmapFont* BitmapFont::CreateOrGetFontFromGlyphSheet(const std::string& bitmapF
             return nullptr;
         }
     }
+}
+
+//-----------------------------------------------------------------------------------
+void BitmapFont::CleanUpBitmapFontRegistry()
+{
+    for (auto fontPair : s_fontRegistry)
+    {
+        delete fontPair.second;
+    }
+    s_fontRegistry.clear();
+
 }
 
 //-----------------------------------------------------------------------------------
@@ -163,6 +177,12 @@ BitmapFont::BitmapFont(const std::string& bitmapFontName, const std::string& gly
     ReadTextFileIntoVector(glyphSheet, "Data/Fonts/" + glyphFileName + ".fnt");
     ParseGlyphInfo(glyphSheet);
     m_material->SetDiffuseTexture(m_spriteSheet.GetTexture());
+}
+
+BitmapFont::~BitmapFont()
+{
+    delete m_material->m_shaderProgram;
+    delete m_material;
 }
 
 //-----------------------------------------------------------------------------------

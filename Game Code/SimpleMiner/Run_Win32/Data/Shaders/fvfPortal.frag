@@ -41,13 +41,9 @@ void main()
             outPortalDepth = 1.0f;
         }
     }
-    if(isPortalValue == 1.0f)
-    {
-        //outColor = gColor;
-    }
-    outColor = mix(diffuse, gColor, isPortalValue);
+    outColor = mix(diffuse * passColor, gColor * passColor, isPortalValue);
     if(gPassNumber == 1)
     {
-        outColor = diffuse;
+        outColor = diffuse * passColor;
     }
 }

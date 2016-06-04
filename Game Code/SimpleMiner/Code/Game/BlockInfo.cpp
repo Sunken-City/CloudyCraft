@@ -1,7 +1,7 @@
 #include "Game/BlockInfo.hpp"
 #include "Game/World.hpp"
 
-const BlockInfo BlockInfo::INVALID_BLOCK = BlockInfo(nullptr, INVALID_INDEX);
+const BlockInfo BlockInfo::INVALID_BLOCKINFO = BlockInfo(nullptr, INVALID_INDEX);
 
 //-----------------------------------------------------------------------------------
 const Direction BlockInfo::s_oppositeDirections[] =
@@ -72,7 +72,7 @@ BlockInfo BlockInfo::GetNeighbor(Direction direction) const
 	case Direction::WEST:
 		return GetWest();
 	default:
-		return INVALID_BLOCK;
+		return INVALID_BLOCKINFO;
 	}
 }
 

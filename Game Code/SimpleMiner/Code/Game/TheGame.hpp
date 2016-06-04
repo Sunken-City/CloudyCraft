@@ -2,6 +2,7 @@
 #include <vector>
 #include "Engine/Audio/Audio.hpp"
 #include "Engine/Renderer/MeshRenderer.hpp"
+#include "Engine/Core/ProfilingUtils.h"
 
 class SpriteSheet;
 class RGBA;
@@ -10,6 +11,13 @@ class World;
 class Player;
 class Material;
 class Framebuffer;
+
+//GLOBALS//////////////////////////////////////////////////////////////////////////
+extern ProfilingID g_generationProfiling;
+extern ProfilingID g_loadingProfiling;
+extern ProfilingID g_savingProfiling;
+extern ProfilingID g_vaBuildingProfiling;
+extern ProfilingID g_temporaryProfiling;
 
 class TheGame
 {
@@ -27,6 +35,7 @@ public:
     void RenderAxisLines() const;
     void RenderCrosshair() const;
     void RenderInventory() const;
+    void SwapWorlds();
 
     static TheGame* instance;
 
@@ -40,11 +49,11 @@ public:
     Material* m_blockMaterialWithoutPortals;
     Material* m_primaryWorldFBOMaterial;
     SoundID m_worldSwapSFX;
+    unsigned int m_currentlyRenderedWorldID;
+    unsigned int m_alternateRenderedWorldID;
 
 private:
     //Ignore warnings for being unable to generate a copy constructor for singleton class.
     TheGame& operator= (const TheGame& other);
     void UpdateDebug();
-    int m_currentlyRenderedWorldID;
-    int m_alternateRenderedWorldID;
 };

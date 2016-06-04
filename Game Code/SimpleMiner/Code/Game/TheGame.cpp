@@ -24,8 +24,14 @@
 #include "Engine/Renderer/MeshBuilder.hpp"
 #include "Engine/Renderer/Framebuffer.hpp"
 #include <thread>
+#include <regex>
 
 TheGame* TheGame::instance = nullptr;
+ProfilingID g_generationProfiling;
+ProfilingID g_loadingProfiling;
+ProfilingID g_savingProfiling;
+ProfilingID g_vaBuildingProfiling;
+ProfilingID g_temporaryProfiling;
 
 //-----------------------------------------------------------------------------------
 void TheGame::UpdateDebug()
@@ -39,21 +45,28 @@ void TheGame::UpdateDebug()
 
 //-----------------------------------------------------------------------------------
 TheGame::TheGame()
-: m_blockSheet(new SpriteSheet("Data/Images/SimpleMinerAtlas.png", 16, 16))
-, m_currentlyRenderedWorldID(0)
-, m_alternateRenderedWorldID(1)
-, m_worldSwapSFX(AudioSystem::instance->CreateOrGetSound("Data/SFX/swapDimensions.wav"))
-, m_blockMaterial(new Material(new ShaderProgram("Data/Shaders/fvfPortal.vert", "Data/Shaders/fvfPortal.frag"), 
+    : m_blockSheet(new SpriteSheet("Data/Images/SimpleMinerAtlas.png", 16, 16))
+    , m_currentlyRenderedWorldID(0)
+    , m_alternateRenderedWorldID(1)
+    , m_worldSwapSFX(AudioSystem::instance->CreateOrGetSound("Data/SFX/swapDimensions.wav"))
+    , m_blockMaterial(new Material(new ShaderProgram("Data/Shaders/fvfPortal.vert", "Data/Shaders/fvfPortal.frag"),
     RenderState(RenderState::DepthTestingMode::ON, RenderState::FaceCullingMode::CULL_BACK_FACES, RenderState::BlendMode::ALPHA_BLEND)))
     , m_blockMaterialWithoutPortals(new Material(new ShaderProgram("Data/Shaders/fixedVertexFormat.vert", "Data/Shaders/fixedVertexFormat.frag"),
         RenderState(RenderState::DepthTestingMode::ON, RenderState::FaceCullingMode::CULL_BACK_FACES, RenderState::BlendMode::ALPHA_BLEND)))
-, m_primaryWorldFramebuffer(nullptr)
-, m_secondaryWorldFramebuffer(nullptr)
-, m_primaryWorldFBOMaterial(new Material(new ShaderProgram("Data/Shaders/Post/post.vert", "Data/Shaders/Post/post_tritanopia.frag"),
-    RenderState(RenderState::DepthTestingMode::ON, RenderState::FaceCullingMode::RENDER_BACK_FACES, RenderState::BlendMode::ALPHA_BLEND)))
+    , m_primaryWorldFramebuffer(nullptr)
+    , m_secondaryWorldFramebuffer(nullptr)
+    , m_primaryWorldFBOMaterial(new Material(new ShaderProgram("Data/Shaders/Post/post.vert", "Data/Shaders/Post/post_tritanopia.frag"),
+        RenderState(RenderState::DepthTestingMode::ON, RenderState::FaceCullingMode::RENDER_BACK_FACES, RenderState::BlendMode::ALPHA_BLEND)))
 {
-    m_worlds.push_back(new World(0, RGBA(0xDDEEFF00), RGBA(0x4DC9FF00), new EarthGenerator()));			//BlueSky 0x4DC9FFFF     Vaporwave 0xFF819CFF
-    m_worlds.push_back(new World(1, RGBA(0xFDDA0E00), RGBA(0xC5540900), new SkylandsGenerator()));
+    g_generationProfiling = RegisterProfilingChannel();
+    g_loadingProfiling = RegisterProfilingChannel();
+    g_savingProfiling = RegisterProfilingChannel();
+    g_vaBuildingProfiling = RegisterProfilingChannel();
+    g_temporaryProfiling = RegisterProfilingChannel();
+
+    BlockDefinition::Initialize();
+    m_worlds.push_back(new World(0, RGBA(0xDDEEFFFF), RGBA(0x4DC9FFFF), new EarthGenerator()));			//BlueSky 0x4DC9FFFF     Vaporwave 0xFF819CFF
+    m_worlds.push_back(new World(1, RGBA(0xFDDA0EFF), RGBA(0xC55409FF), new SkylandsGenerator()));
     //Why does this have to be here? I had it in initializer list, but caused race condition. Reminder to ask someone.
     m_player = new Player(m_worlds[0]);
     m_playerCamera = &(m_player->m_camera);
@@ -86,19 +99,35 @@ TheGame::TheGame()
 //-----------------------------------------------------------------------------------
 TheGame::~TheGame()
 {
+    BlockDefinition::Uninitialize();
     for (World* world : m_worlds)
     {
         delete world;
     }
+    m_worlds.clear();
     delete m_player;
     delete m_blockSheet;
+    delete m_blockMaterial->m_shaderProgram;
+    delete m_blockMaterial;
+    delete m_blockMaterialWithoutPortals->m_shaderProgram;
+    delete m_blockMaterialWithoutPortals;
+    delete m_primaryWorldFBOMaterial->m_shaderProgram;
+    delete m_primaryWorldFBOMaterial;
+    delete m_primaryWorldFramebuffer->m_depthStencilTarget;
+    for (unsigned int i = 0; i < m_primaryWorldFramebuffer->m_colorCount; ++i)
+    {
+        delete m_primaryWorldFramebuffer->m_colorTargets[i];
+    }
+    delete m_secondaryWorldFramebuffer->m_depthStencilTarget;
+    //The first one was shared with the primary framebuffer
+    delete m_secondaryWorldFramebuffer->m_colorTargets[1];
+    Framebuffer::FramebufferDelete(m_primaryWorldFramebuffer);
+    Framebuffer::FramebufferDelete(m_secondaryWorldFramebuffer);
 }
-float degrees = 0.f;
 
 //-----------------------------------------------------------------------------------
 void TheGame::Update(float deltaTime)
 {
-    ENSURE_NO_MATRIX_STACK_SIDE_EFFECTS(Renderer::instance->m_viewStack);
     if (InputSystem::instance->WasKeyJustPressed(InputSystem::ExtraKeys::TILDE))
     {
         Console::instance->ActivateConsole();
@@ -109,10 +138,7 @@ void TheGame::Update(float deltaTime)
     }
     if (InputSystem::instance->WasKeyJustPressed('U'))
     {
-        m_currentlyRenderedWorldID = m_alternateRenderedWorldID;
-        m_alternateRenderedWorldID = m_currentlyRenderedWorldID == 0 ? 1 : 0;
-        m_player->m_world = m_worlds[m_currentlyRenderedWorldID];
-        AudioSystem::instance->PlaySound(m_worldSwapSFX);
+        SwapWorlds();
     }
     if (InputSystem::instance->WasKeyJustPressed('B'))
     {
@@ -124,6 +150,7 @@ void TheGame::Update(float deltaTime)
         world->Update(deltaTime);
     }
     UpdateDebug();
+    std::regex chunkFile("-?[0-9]+,-?[0-9]+.*\\.chunk");
 }
 
 //-----------------------------------------------------------------------------------
@@ -146,7 +173,7 @@ void TheGame::Render() const
     Renderer::instance->EnableFaceCulling(true);
     m_blockMaterial->SetIntUniform("gPassNumber", 0);
     m_blockMaterial->SetEmissiveTexture(Texture::CreateOrGetTexture("Data/Images/initialPortalTexture.png"));
-    m_blockMaterial->SetVec4Uniform("gColor", m_worlds[m_currentlyRenderedWorldID]->m_skyColor.ToVec4());
+    m_blockMaterial->SetVec4Uniform("gColor", m_worlds[m_alternateRenderedWorldID]->m_skyColor.ToVec4());
     m_worlds[m_currentlyRenderedWorldID]->Render();
 
     //Second Pass
@@ -156,20 +183,19 @@ void TheGame::Render() const
     m_blockMaterial->SetIntUniform("gPassNumber", 1);
     m_blockMaterial->SetEmissiveTexture(m_primaryWorldFramebuffer->m_colorTargets[1]);
     m_blockMaterial->SetNoiseTexture(m_primaryWorldFramebuffer->m_depthStencilTarget);
-    m_blockMaterial->SetVec4Uniform("gColor", m_worlds[m_alternateRenderedWorldID]->m_skyColor.ToVec4());
+    m_blockMaterial->SetVec4Uniform("gColor", m_worlds[m_currentlyRenderedWorldID]->m_skyColor.ToVec4());
     m_worlds[m_alternateRenderedWorldID]->Render();
     Renderer::instance->EnableFaceCulling(false);
-
+    Renderer::instance->BindFramebuffer(nullptr);
+    Renderer::instance->FrameBufferCopyToBack(m_primaryWorldFramebuffer);
+    Renderer::instance->ClearDepth(1.0f);
     m_player->Render();
     if (g_renderDebug)
     {
         RenderAxisLines();
     }
     m_playerCamera->ExitViewFromCamera();
-    End3DPerspective();    
-    Renderer::instance->BindFramebuffer(nullptr);
-    Renderer::instance->FrameBufferCopyToBack(m_primaryWorldFramebuffer);
-    Renderer::instance->ClearDepth(1.0f);
+    End3DPerspective();
     //2D RENDERING
     RenderUI();
     if (g_renderDebug)
@@ -190,7 +216,6 @@ void TheGame::DebugRender() const
     MeshRenderer* renderer = new MeshRenderer(new Mesh(), debugMaterial);
     builder.CopyToMesh(renderer->m_mesh, &Vertex_PCUTB::Copy, sizeof(Vertex_PCUTB), &Vertex_PCUTB::BindMeshToVAO);
     debugMaterial->SetDiffuseTexture(m_primaryWorldFramebuffer->m_colorTargets[0]);
-    //debugMaterial->SetDiffuseTexture(&pass1);
     renderer->Render();
     renderer->SetPosition(Vector3(160, 0, 0));
     debugMaterial->SetDiffuseTexture(m_primaryWorldFramebuffer->m_colorTargets[1]);
@@ -257,35 +282,35 @@ void TheGame::RenderDebugText() const
         physicsMode = "Mode: INVALID MODE";
         break;
     }
-    TimingInfo frameProfilingInfo = profilingResults[g_frameTimeProfiling];
+    TimingInfo frameProfilingInfo = g_profilingResults[g_frameTimeProfiling];
     //Multiply by 1000 to put into milliseconds.
     std::string frameProfiling = Stringf("Frame Times =  Avg: %.02f ms, Max: %.02f ms, Last: %.02f ms", frameProfilingInfo.m_averageSample * 1000.0, frameProfilingInfo.m_maxSample * 1000.0, frameProfilingInfo.m_lastSample * 1000.0);
 
-    TimingInfo loadProfilingInfo = profilingResults[g_loadingProfiling];
+    TimingInfo loadProfilingInfo = g_profilingResults[g_loadingProfiling];
     //Multiply by 1000 to put into milliseconds.
     std::string loadProfiling = Stringf("Load Times =  Avg: %.02f ms, Max: %.02f ms, Last: %.02f ms", loadProfilingInfo.m_averageSample * 1000.0, loadProfilingInfo.m_maxSample * 1000.0, loadProfilingInfo.m_lastSample * 1000.0);
 
-    TimingInfo saveProfilingInfo = profilingResults[g_savingProfiling];
+    TimingInfo saveProfilingInfo = g_profilingResults[g_savingProfiling];
     //Multiply by 1000 to put into milliseconds.
     std::string saveProfiling = Stringf("Save Times =  Avg: %.02f ms, Max: %.02f ms, Last: %.02f ms", saveProfilingInfo.m_averageSample * 1000.0, saveProfilingInfo.m_maxSample * 1000.0, saveProfilingInfo.m_lastSample * 1000.0);
 
-    TimingInfo genProfilingInfo = profilingResults[g_generationProfiling];
+    TimingInfo genProfilingInfo = g_profilingResults[g_generationProfiling];
     //Multiply by 1000 to put into milliseconds.
     std::string genProfiling = Stringf("Generation Times =  Avg: %.02f ms, Max: %.02f ms, Last: %.02f ms", genProfilingInfo.m_averageSample * 1000.0, genProfilingInfo.m_maxSample * 1000.0, genProfilingInfo.m_lastSample * 1000.0);
 
-    TimingInfo vaProfilingInfo = profilingResults[g_vaBuildingProfiling];
+    TimingInfo vaProfilingInfo = g_profilingResults[g_vaBuildingProfiling];
     //Multiply by 1000 to put into milliseconds.
     std::string vaProfiling = Stringf("VA Times =  Avg: %.02f ms, Max: %.02f ms, Last: %.02f ms", vaProfilingInfo.m_averageSample * 1000.0, vaProfilingInfo.m_maxSample * 1000.0, vaProfilingInfo.m_lastSample * 1000.0);
 
-    TimingInfo tempProfilingInfo = profilingResults[g_temporaryProfiling];
+    TimingInfo tempProfilingInfo = g_profilingResults[g_temporaryProfiling];
     //Multiply by 1000 to put into milliseconds.
     std::string tempProfiling = Stringf("Temporary Profiling =  Avg: %.02f ms, Max: %.02f ms, Last: %.02f ms", tempProfilingInfo.m_averageSample * 1000.0, tempProfilingInfo.m_maxSample * 1000.0, tempProfilingInfo.m_lastSample * 1000.0);
 
-    TimingInfo renderProfilingInfo = profilingResults[g_renderProfiling];
+    TimingInfo renderProfilingInfo = g_profilingResults[g_renderProfiling];
     //Multiply by 1000 to put into milliseconds.
     std::string renderProfiling = Stringf("Render Profiling =  Avg: %.02f ms, Max: %.02f ms, Last: %.02f ms", renderProfilingInfo.m_averageSample * 1000.0, renderProfilingInfo.m_maxSample * 1000.0, renderProfilingInfo.m_lastSample * 1000.0);
 
-    TimingInfo updateProfilingInfo = profilingResults[g_updateProfiling];
+    TimingInfo updateProfilingInfo = g_profilingResults[g_updateProfiling];
     //Multiply by 1000 to put into milliseconds.
     std::string updateProfiling = Stringf("Update Profiling =  Avg: %.02f ms, Max: %.02f ms, Last: %.02f ms", updateProfilingInfo.m_averageSample * 1000.0, updateProfilingInfo.m_maxSample * 1000.0, updateProfilingInfo.m_lastSample * 1000.0);
 
@@ -404,4 +429,13 @@ void TheGame::RenderInventory() const
     blockSelection->Render();
     delete blockMesh;
     delete blockSelection;
+}
+
+//-----------------------------------------------------------------------------------
+void TheGame::SwapWorlds()
+{
+    m_currentlyRenderedWorldID = m_alternateRenderedWorldID;
+    m_alternateRenderedWorldID = m_currentlyRenderedWorldID == 0 ? 1 : 0;
+    m_player->m_world = m_worlds[m_currentlyRenderedWorldID];
+    AudioSystem::instance->PlaySound(m_worldSwapSFX);
 }

@@ -23,6 +23,9 @@
     <ClCompile Include="..\ThirdParty\stb_image.c" />
     <ClCompile Include="Audio\Audio.cpp" />
     <ClCompile Include="Core\ErrorWarningAssert.cpp" />
+    <ClCompile Include="Core\Memory\Callstack.cpp" />
+    <ClCompile Include="Core\Memory\MemoryOutputWindow.cpp" />
+    <ClCompile Include="Core\Memory\MemoryTracking.cpp" />
     <ClCompile Include="Core\ProfilingUtils.cpp" />
     <ClCompile Include="Core\StringUtils.cpp" />
     <ClCompile Include="Input\BinaryReader.cpp" />
@@ -65,7 +68,6 @@
     <ClCompile Include="Renderer\SpriteAnim.cpp" />
     <ClCompile Include="Renderer\SpriteSheet.cpp" />
     <ClCompile Include="Renderer\Texture.cpp" />
-    <ClCompile Include="Renderer\TheRenderer.cpp" />
     <ClCompile Include="Renderer\Vertex.cpp" />
     <ClCompile Include="TextRendering\StringEffectFragment.cpp" />
     <ClCompile Include="TextRendering\TextBox.cpp" />
@@ -78,7 +80,12 @@
     <ClInclude Include="..\ThirdParty\OpenGL\wglext.h" />
     <ClInclude Include="..\ThirdParty\Parsers\XMLParser.hpp" />
     <ClInclude Include="Audio\Audio.hpp" />
+    <ClInclude Include="Core\BuildConfig.hpp" />
     <ClInclude Include="Core\ErrorWarningAssert.hpp" />
+    <ClInclude Include="Core\Memory\Callstack.hpp" />
+    <ClInclude Include="Core\Memory\MemoryOutputWindow.hpp" />
+    <ClInclude Include="Core\Memory\MemoryTracking.hpp" />
+    <ClInclude Include="Core\Memory\UntrackedAllocator.hpp" />
     <ClInclude Include="Core\ProfilingUtils.h" />
     <ClInclude Include="Core\StringUtils.hpp" />
     <ClInclude Include="Input\BinaryReader.hpp" />
@@ -121,7 +128,6 @@
     <ClInclude Include="Renderer\SpriteAnim.hpp" />
     <ClInclude Include="Renderer\SpriteSheet.hpp" />
     <ClInclude Include="Renderer\Texture.hpp" />
-    <ClInclude Include="Renderer\TheRenderer.hpp" />
     <ClInclude Include="Renderer\Vertex.hpp" />
     <ClInclude Include="TextRendering\StringEffectFragment.hpp" />
     <ClInclude Include="TextRendering\TextBox.hpp" />

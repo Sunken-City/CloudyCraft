@@ -74,6 +74,8 @@ public:
     void EnableAlphaBlending();
     void EnableInvertedBlending();
     void EnableDepthTest(bool enabled);
+    void EnableDepthWrite();
+    void DisableDepthWrite();
     void EnableFaceCulling(bool enabled);
     void BindTexture(const Texture& texture);
     void UnbindTexture();
@@ -123,6 +125,7 @@ public:
     GLuint GenerateVAOHandle();
     GLuint RenderBufferCreate(void* data, size_t count, size_t elementSize, GLenum usage/* = GL_STATIC_DRAW*/);
     int CreateSampler(GLenum min_filter, GLenum magFilter, GLenum uWrap, GLenum vWrap);
+    void DeleteSampler(GLuint id);
     inline void PushProjection(const Matrix4x4& proj) { m_projStack.Push(proj); };
     inline void PushView(const Matrix4x4& view) { m_viewStack.Push(view); };
     inline void PopProjection() { m_projStack.Pop(); };

@@ -93,7 +93,6 @@ Face Block::GetFace(const Vector3Int& bottomLeftCorner, const Vector3Int& faceNo
 //-----------------------------------------------------------------------------------
 bool Block::IsPortal(Direction portalFace)
 {
-    uchar bitmaskPortalFace = 0x00;
     switch (portalFace)
     {
     case Direction::ABOVE:

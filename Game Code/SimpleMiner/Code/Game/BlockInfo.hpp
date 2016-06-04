@@ -38,7 +38,7 @@ public:
 
 	//CONSTANTS//////////////////////////////////////////////////////////////////////////
 	static const int INVALID_INDEX = -1;
-	static const BlockInfo INVALID_BLOCK;
+	static const BlockInfo INVALID_BLOCKINFO;
 	static const Direction directions[6];
 	static const Direction s_oppositeDirections[6];
 	static const Direction cardinalDirections[4];
