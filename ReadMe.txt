@@ -12,9 +12,17 @@ Introduction:
 
 Thank you very much for trying out my demo of CloudyCraft! This is my personal
 recreation of the core functionality in Minecraft, with a few extras not found
-in the game (such as a real-time alternate dimension, colored lighting, and
+in the game (such as a real-time alternate dimension portals, colored lighting, and
 functional stained glass). The game was built from the ground up using my own 
 homemade engine, written in C++ and using OpenGL for rendering.
+
+If you're here to try out the real-time portals, here's a quick primer on how to 
+get started. While holding the middle mouse button, right click on a surface to create
+a portal. Since this has just been for debugging and has no gameplay meaning yet, it's 
+a bit unweildy, but it works fine. There are a few physics bugs associated with them,
+especially on the edges, but they're a lot of fun already! You can technically close the portal 
+in the same way as opening one, but you have to select the same block face, 
+meaning you need to build up to cover up the portal in the other dimension and then right click.
 
 Please note that I've been taking more classes while working on this demo, so
 the code is a little messy (with some in-class demos added in the renderer that I
@@ -22,16 +30,6 @@ haven't had time yet to clean up, etc.). Also, as this is a work in progress,
 there are a few bugs and leaks that I haven't been able to take care of yet. 
 If you find anything, I'd love to hear about it so that I can fix it for the 
 next release.
-
-What's next from here? With the fundamental gameplay already implemented and
-some extra features added, I've decided to go for something that Minecraft doesn't
-yet have: Real-time Nether portals. Over the next semester, I plan to implement
-a thin "nether" portal that leads to the alternate dimension. However, the
-transfer between worlds will be instantaneous, achieved by walking through
-the portal in real-time without having to wait for the chunks to load. As a
-bonus, you'll be able to preview the current state of the other dimension by
-looking into the portal. You can see the new "sky world" alternate dimension by
-pressing the U key to swap between the two instantaneously. 
 
 If you have any questions about the game, any trouble running it, or find any
 bugs, please feel free to shoot me an email at acloudy@smu.edu
@@ -68,6 +66,7 @@ Z - Fly Downward
 Spacebar - Jump / Fly Upward
 Left Click - Dig Block
 Right Click - Place Block
+Middle Click + Right Click - Place portal
 Scroll Wheel - Move through block selection list.
 0-9 - Select a block to use
 U - Swap Dimensions (Check out the sky dimension and the earth dimension!)
@@ -85,22 +84,19 @@ V - Change physics mode
   ~ Flying: Collisions are enabled, but gravity is not. Can fly freely in open air.
   ~ Normal: All physics enabled. Walking, with running and jumping included.
 Esc - Quit the Program
-` - Open the console.
-  Console Commands:
-  ~ Enter: Run the command on the line. Alternatively, exit the console if
-    the command line is currently empty.
-
-  Note: Console was just integrated from an assignment I did last week. I haven't
-  had time to make it more robust, so it's definitely fragile c:
 
 Debug Commands:
 B - Toggle all debug rendering
-L - Draw a debug point at current camera location
-O - Clear all debug points
+` - Opens the console. Currently broken in favor of work in another class.
 
 ================================================================================
 Known Issues:
 ================================================================================
+
+There may be some edge cases I haven't accounted for, specifically at the top
+and bottom of the world. You might be able to crash the game or get unexpected results
+whenever you manipulate blocks in that area or fly too high up or down. This is just
+something I haven't had the time to address, but I know what I need to do!
 
 The game's decisions on which chunks to render works well at higher framerates,
 but might not pick the correct ones when in debug or when the frame drops. As a
@@ -109,20 +105,14 @@ moving fast. The data for these chunks have been loaded into memory, so you're
 able to interact with the blocks and force them to build their vertex arrays.
 
 You can put blocks down inside yourself. Fortunately, you can dig yourself back
-out. :)
+out. If you get stuck doing anything in the game, just use the V key to change 
+into noclip mode and free yourself. :)
 
 Depending on the framerate, you can have various issues crop up, such as
 physics errors (getting stuck inside blocks).
 
-There may be some edge cases I haven't accounted for, specifically at the top
-and bottom of the world. You might be able to crash the game or get unexpected results
-whenever you manipulate blocks in that area.
-
 There are also a few lingering Physics bugs, especially if the framerate gets
 below 60 fps.
-
-I solved a large memory leak from the last release, but there's still a little one
-that I'm still hunting down.
 
 ================================================================================
 Special Thanks:
@@ -130,6 +120,11 @@ Special Thanks:
 
 Squirrel Eiserloh - For putting up with me in class and being an amazing professor.
 I could not have made it this far without your mentorship and guidance.
+
+Chrisopher Forseth - For letting me attend your directed focus study, even though
+I wasn't even enrolled in it. Thank you for putting up with all of my dank memes in
+class, and for taking time out of your weekends to meet with me while I was off in 
+Seattle.
 
 Ken Harward - For letting me take a directed focus study with you earlier than
 intended, and putting up with me for about an hour at the start of each day

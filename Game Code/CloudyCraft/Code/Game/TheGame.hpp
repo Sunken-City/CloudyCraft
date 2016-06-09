@@ -47,7 +47,6 @@ public:
     Framebuffer* m_secondaryWorldFramebuffer;
     Material* m_blockMaterial;
     Material* m_blockMaterialWithoutPortals;
-    Material* m_primaryWorldFBOMaterial;
     SoundID m_worldSwapSFX;
     unsigned int m_currentlyRenderedWorldID;
     unsigned int m_alternateRenderedWorldID;

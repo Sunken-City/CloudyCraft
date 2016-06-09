@@ -55,9 +55,7 @@ TheGame::TheGame()
         RenderState(RenderState::DepthTestingMode::ON, RenderState::FaceCullingMode::CULL_BACK_FACES, RenderState::BlendMode::ALPHA_BLEND)))
     , m_primaryWorldFramebuffer(nullptr)
     , m_secondaryWorldFramebuffer(nullptr)
-    , m_primaryWorldFBOMaterial(new Material(new ShaderProgram("Data/Shaders/Post/post.vert", "Data/Shaders/Post/post_tritanopia.frag"),
-        RenderState(RenderState::DepthTestingMode::ON, RenderState::FaceCullingMode::RENDER_BACK_FACES, RenderState::BlendMode::ALPHA_BLEND)))
-{
+   {
     g_generationProfiling = RegisterProfilingChannel();
     g_loadingProfiling = RegisterProfilingChannel();
     g_savingProfiling = RegisterProfilingChannel();
@@ -111,8 +109,6 @@ TheGame::~TheGame()
     delete m_blockMaterial;
     delete m_blockMaterialWithoutPortals->m_shaderProgram;
     delete m_blockMaterialWithoutPortals;
-    delete m_primaryWorldFBOMaterial->m_shaderProgram;
-    delete m_primaryWorldFBOMaterial;
     delete m_primaryWorldFramebuffer->m_depthStencilTarget;
     for (unsigned int i = 0; i < m_primaryWorldFramebuffer->m_colorCount; ++i)
     {
