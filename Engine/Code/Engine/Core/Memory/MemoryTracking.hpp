@@ -1,7 +1,7 @@
 #pragma once
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include "../ErrorWarningAssert.hpp"
+#include "Engine/Core/ErrorWarningAssert.hpp"
 
 //FORWARD DECLARATIONS//////////////////////////////////////////////////////////////////////////
 struct Callstack;
@@ -20,13 +20,13 @@ public:
         , callstack(nullptr)
         , next(nullptr)
         , prev(nullptr)
-        , newedDataPtr(nullptr)
     {};
+
+    ~MemoryMetadata();
 
     //In place linked list methods.
     static void AddMemoryMetadataToList(MemoryMetadata* stackToAdd);
-    static void RemoveMemoryMetadataFromList(MemoryMetadata* stackToRemove);
-    static MemoryMetadata* FindMemoryMetadataInList(void* dataPayload);
+    static void RemoveMemoryMetadataFromList(MemoryMetadata* metadataToRemove);
     static void PrintAllMetadataInList();
 
     //MEMBER VARIABLES//////////////////////////////////////////////////////////////////////////
@@ -34,7 +34,6 @@ public:
     Callstack* callstack;
     MemoryMetadata* next;
     MemoryMetadata* prev;
-    void* newedDataPtr;
 };
 
 //-----------------------------------------------------------------------------------
@@ -151,4 +150,12 @@ T* UntrackedNew(ARGS... args)
     T *ptr = (T*)malloc(sizeof(T));
     new (ptr) T(args...);
     return ptr;
+}
+
+//-----------------------------------------------------------------------------------
+template <typename T>
+void UntrackedDelete(T* ptrToDelete)
+{
+    ptrToDelete->~T();
+    ::free(ptrToDelete);
 }

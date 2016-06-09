@@ -185,21 +185,37 @@ RaycastResult3D Player::RaycastForMovementCheck(WorldPosition proposedPosition)
     Vector3 topTopRightStart = m_position			+ Vector3( COLLISION_AVOIDANCE_PLAYER_WIDTH,  COLLISION_AVOIDANCE_PLAYER_WIDTH,  COLLISION_AVOIDANCE_HALF_PLAYER_HEIGHT);
     Vector3 topTopRightEnd = proposedPosition		+ Vector3( COLLISION_AVOIDANCE_PLAYER_WIDTH,  COLLISION_AVOIDANCE_PLAYER_WIDTH,  COLLISION_AVOIDANCE_HALF_PLAYER_HEIGHT);
     
+    //Check to see if our points are in the same world or not. We cache off the world to start our raycast from.
+    World* bottomBottomLeftStartingWorld  = m_world->Raycast(m_position, bottomBottomLeftStart).impactedBlockInfo.m_chunk->m_world; 
+    World* bottomBottomRightStartingWorld = m_world->Raycast(m_position, bottomBottomRightStart).impactedBlockInfo.m_chunk->m_world;
+    World* topBottomLeftStartingWorld     = m_world->Raycast(m_position, topBottomLeftStart).impactedBlockInfo.m_chunk->m_world;
+    World* topBottomRightStartingWorld    = m_world->Raycast(m_position, topBottomRightStart).impactedBlockInfo.m_chunk->m_world;
 
-    RaycastResult3D bottomBottomLeftCast	= m_world->Raycast(bottomBottomLeftStart,	bottomBottomLeftEnd);
-    RaycastResult3D bottomBottomRightCast	= m_world->Raycast(bottomBottomRightStart,	bottomBottomRightEnd);
-    RaycastResult3D topBottomLeftCast		= m_world->Raycast(topBottomLeftStart,		topBottomLeftEnd);
-    RaycastResult3D topBottomRightCast		= m_world->Raycast(topBottomRightStart,		topBottomRightEnd);
+    World* bottomMiddleLeftStartingWorld  = m_world->Raycast(m_position, bottomMiddleLeftStart).impactedBlockInfo.m_chunk->m_world;
+    World* bottomMiddleRightStartingWorld = m_world->Raycast(m_position, bottomMiddleRightStart).impactedBlockInfo.m_chunk->m_world;
+    World* topMiddleLeftStartingWorld     = m_world->Raycast(m_position, topMiddleLeftStart).impactedBlockInfo.m_chunk->m_world;
+    World* topMiddleRightStartingWorld    = m_world->Raycast(m_position, topMiddleRightStart).impactedBlockInfo.m_chunk->m_world;
 
-    RaycastResult3D bottomMiddleLeftCast	= m_world->Raycast(bottomMiddleLeftStart,	bottomMiddleLeftEnd);
-    RaycastResult3D bottomMiddleRightCast	= m_world->Raycast(bottomMiddleRightStart,	bottomMiddleRightEnd);
-    RaycastResult3D topMiddleLeftCast		= m_world->Raycast(topMiddleLeftStart,		topMiddleLeftEnd);
-    RaycastResult3D topMiddleRightCast		= m_world->Raycast(topMiddleRightStart,		topMiddleRightEnd);
+    World* bottomTopLeftStartingWorld     = m_world->Raycast(m_position, bottomTopLeftStart).impactedBlockInfo.m_chunk->m_world;
+    World* bottomTopRightStartingWorld    = m_world->Raycast(m_position, bottomTopRightStart).impactedBlockInfo.m_chunk->m_world;
+    World* topTopLeftStartingWorld        = m_world->Raycast(m_position, topTopLeftStart).impactedBlockInfo.m_chunk->m_world;
+    World* topTopRightStartingWorld       = m_world->Raycast(m_position, topTopRightStart).impactedBlockInfo.m_chunk->m_world;
 
-    RaycastResult3D bottomTopLeftCast		= m_world->Raycast(bottomTopLeftStart,		bottomTopLeftEnd);
-    RaycastResult3D bottomTopRightCast		= m_world->Raycast(bottomTopRightStart,		bottomTopRightEnd);
-    RaycastResult3D topTopLeftCast			= m_world->Raycast(topTopLeftStart,			topTopLeftEnd);
-    RaycastResult3D topTopRightCast			= m_world->Raycast(topTopRightStart,		topTopRightEnd);
+    //Raycast to see if the movement is valid or not. Start from the world that the corner of our box currently exists in.
+    RaycastResult3D bottomBottomLeftCast	= bottomBottomLeftStartingWorld->Raycast(bottomBottomLeftStart,	bottomBottomLeftEnd);
+    RaycastResult3D bottomBottomRightCast	= bottomBottomRightStartingWorld->Raycast(bottomBottomRightStart,	bottomBottomRightEnd);
+    RaycastResult3D topBottomLeftCast		= topBottomLeftStartingWorld->Raycast(topBottomLeftStart,		topBottomLeftEnd);
+    RaycastResult3D topBottomRightCast		= topBottomRightStartingWorld->Raycast(topBottomRightStart,		topBottomRightEnd);
+
+    RaycastResult3D bottomMiddleLeftCast	= bottomMiddleLeftStartingWorld->Raycast(bottomMiddleLeftStart,	bottomMiddleLeftEnd);
+    RaycastResult3D bottomMiddleRightCast	= bottomMiddleRightStartingWorld->Raycast(bottomMiddleRightStart,	bottomMiddleRightEnd);
+    RaycastResult3D topMiddleLeftCast		= topMiddleLeftStartingWorld->Raycast(topMiddleLeftStart,		topMiddleLeftEnd);
+    RaycastResult3D topMiddleRightCast		= topMiddleRightStartingWorld->Raycast(topMiddleRightStart,		topMiddleRightEnd);
+
+    RaycastResult3D bottomTopLeftCast		= bottomTopLeftStartingWorld->Raycast(bottomTopLeftStart,		bottomTopLeftEnd);
+    RaycastResult3D bottomTopRightCast		= bottomTopRightStartingWorld->Raycast(bottomTopRightStart,		bottomTopRightEnd);
+    RaycastResult3D topTopLeftCast			= topTopLeftStartingWorld->Raycast(topTopLeftStart,			topTopLeftEnd);
+    RaycastResult3D topTopRightCast			= topTopRightStartingWorld->Raycast(topTopRightStart,		topTopRightEnd);
 
     m_summedCollision = Vector3Int::ZERO;
     m_summedCollision += bottomBottomLeftCast.impactSurfaceNormal;
@@ -433,6 +449,7 @@ void Player::UpdatePhysics(float deltaTime)
         float secondsLeft = deltaTime;
         while (secondsLeft > 0.0f)
         {
+            Vector3 startingPosition = m_position;
             Vector3 deltaMove = m_velocity * secondsLeft;
             RaycastResult3D shortestRaycast = RaycastForMovementCheck(m_position + deltaMove);
             if (!shortestRaycast.didImpact)
@@ -477,9 +494,12 @@ void Player::UpdatePhysics(float deltaTime)
                 }
                 TheRealSummedCollision = m_summedCollision;
             }
-            RaycastResult3D playerPositionResult = m_world->Raycast(m_position, m_position + deltaMove);
+            //Since by this point we've already applied our move in m_position, compare that to the position at the beginning of this loop to see if we've teleported.
+            RaycastResult3D playerPositionResult = m_world->Raycast(startingPosition, m_position);
             if (playerPositionResult.impactedBlockInfo.IsValid() && playerPositionResult.impactedBlockInfo.m_chunk->m_world != m_world)
             {
+                DebuggerPrintf(">>SWAPPING WORLDS FROM %p to %p\n", m_world, playerPositionResult.impactedBlockInfo.m_chunk->m_world);
+                DebuggerPrintf(">>Moving from {%f, %f, %f}\nto            {%f, %f, %f}\n", startingPosition.x, startingPosition.y, startingPosition.z, m_position.x, m_position.y, m_position.z);
                 TheGame::instance->SwapWorlds();
             }
         }

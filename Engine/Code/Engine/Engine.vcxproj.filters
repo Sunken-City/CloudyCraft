@@ -204,6 +204,9 @@
     <ClCompile Include="Core\Memory\MemoryOutputWindow.cpp">
       <Filter>Engine\Core\Memory</Filter>
     </ClCompile>
+    <ClCompile Include="Input\Logging.cpp">
+      <Filter>Engine\Input</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Math\Vector2.hpp">
@@ -377,6 +380,9 @@
     </ClInclude>
     <ClInclude Include="Core\Memory\MemoryOutputWindow.hpp">
       <Filter>Engine\Core\Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\Logging.hpp">
+      <Filter>Engine\Input</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

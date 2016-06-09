@@ -62,6 +62,13 @@ MeshBuilder::MeshBuilder()
 }
 
 //-----------------------------------------------------------------------------------
+MeshBuilder::~MeshBuilder()
+{
+    m_vertices.clear();
+    m_indices.clear();
+}
+
+//-----------------------------------------------------------------------------------
 void MeshBuilder::Begin()
 {
     m_startIndex = m_vertices.size();

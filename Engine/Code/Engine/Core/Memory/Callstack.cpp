@@ -125,7 +125,6 @@ void CallstackSystemDeinit()
     }
 
     free(gSymbol);
-    --gCallstackCount;
 }
 
 //------------------------------------------------------------------------

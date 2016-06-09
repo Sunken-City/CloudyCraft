@@ -15,5 +15,5 @@ private:
 
 public:
 	std::string m_value;
-	TextEffect m_effect;;
+	TextEffect m_effect;
 };

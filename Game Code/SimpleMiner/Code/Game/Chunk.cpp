@@ -50,12 +50,7 @@ Chunk::Chunk(const ChunkCoords& chunkCoords, std::vector<unsigned char>& data, W
 Chunk::~Chunk()
 {
     DebuggerPrintf("[%i] World [%i]: Deleting Chunk %i,%i\n", g_frameNumber, m_world->m_worldID, m_chunkPosition.x, m_chunkPosition.y);
-    if (m_meshRenderer)
-    {
-        delete m_meshRenderer->m_mesh;
-        delete m_meshRenderer;
-        m_meshRenderer = nullptr;
-    }
+    AttemptCleanUpRenderData();
 }
 
 //-----------------------------------------------------------------------------------
@@ -251,13 +246,7 @@ void Chunk::GenerateVertexArray()
 {
     DebuggerPrintf("[%i] World [%i]: Building Chunk %i,%i VA\n", g_frameNumber, m_world->m_worldID, m_chunkPosition.x, m_chunkPosition.y);
     StartTiming(g_vaBuildingProfiling);
-
-    if (m_meshRenderer)
-    {
-        delete m_meshRenderer->m_mesh;
-        delete m_meshRenderer;
-        m_meshRenderer = nullptr;
-    }
+    AttemptCleanUpRenderData();
     MeshBuilder builder = MeshBuilder();
     builder.Begin();
     const float blockSize = 1.0f;
@@ -595,6 +584,17 @@ void Chunk::LoadChunkFromData(std::vector<unsigned char>& data)
         {
             m_blocks[currentIndex++].m_type = blockType;
         }
+    }
+}
+
+//-----------------------------------------------------------------------------------
+void Chunk::AttemptCleanUpRenderData()
+{
+    if (m_meshRenderer)
+    {
+        delete m_meshRenderer->m_mesh;
+        delete m_meshRenderer;
+        m_meshRenderer = nullptr;
     }
 }
 

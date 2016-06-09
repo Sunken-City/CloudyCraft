@@ -72,7 +72,6 @@ void* MemoryAnalytics::Allocate(const size_t numBytes)
     const size_t real_size = sizeof(size_t) + numBytes;
     size_t* ptr = (size_t*) ::malloc(real_size);
 
-    metadata->newedDataPtr = ptr;
     metadata->sizeOfAllocInBytes = numBytes;
 
     #if (TRACK_MEMORY > 0)
@@ -132,13 +131,18 @@ void MemoryAnalytics::Free(const void* ptr)
         m_numberOfBytes -= metadata->sizeOfAllocInBytes;
 
 #if (TRACK_MEMORY > 0)
-        MemoryMetadata* foundCallstack = MemoryMetadata::FindMemoryMetadataInList((void*)sizedPtr);
-        ASSERT_OR_DIE(foundCallstack, "Did not find a callstack for the associated memory free. Double Free?");
-        MemoryMetadata::RemoveMemoryMetadataFromList(foundCallstack);
+        MemoryMetadata::RemoveMemoryMetadataFromList(metadata);
+        UntrackedDelete<MemoryMetadata>(metadata);
 #endif // TRACK_MEMORY > 0
 
     }
     AttemptLeave();
+}
+
+//-----------------------------------------------------------------------------------
+MemoryMetadata::~MemoryMetadata()
+{
+    FreeCallstack(callstack);
 }
 
 //-----------------------------------------------------------------------------------
@@ -168,21 +172,6 @@ void MemoryMetadata::RemoveMemoryMetadataFromList(MemoryMetadata* stackToRemove)
     {
         g_memoryMetadataList = stackToRemove->next == stackToRemove ? nullptr : stackToRemove->next;
     }
-}
-
-//-----------------------------------------------------------------------------------
-MemoryMetadata* MemoryMetadata::FindMemoryMetadataInList(void* dataPayload)
-{
-    MemoryMetadata* currentNode = g_memoryMetadataList;
-    do
-    {
-        if (currentNode->newedDataPtr == dataPayload)
-        {
-            return currentNode;
-        }
-        currentNode = currentNode->next;
-    } while (currentNode != g_memoryMetadataList);
-    return nullptr;
 }
 
 //-----------------------------------------------------------------------------------

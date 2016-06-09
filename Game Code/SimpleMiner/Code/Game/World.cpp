@@ -144,7 +144,11 @@ void World::FlushUnnecessaryChunks()
 
     if (shouldFlushChunk)
     {
-        Chunk* flushedChunk = m_activeChunks[chunkToFlush];
+        Chunk* flushedChunk = m_activeChunks[chunkToFlush]; 
+        //This line was really important. If I don't manually call this here, the other thread will delete the chunk and
+        //fail to clean up the GPU resources for the chunk (since it's not the main thread). This was really subtle, as my
+        //memory monitoring system would even mark them as freed since it ran the cpu-side code.
+        flushedChunk->AttemptCleanUpRenderData();
         AddToSaveQueue(flushedChunk);
         UnhookChunkPointers(m_activeChunks[chunkToFlush]);
         m_chunkAddRemoveBalance--;
@@ -274,6 +278,7 @@ void World::PlaceBlock()
             extrudedBlockInfo.GetBlock()->SetPortal(BlockInfo::s_oppositeDirections[selectedFace]);
             Portal::GetBlockInLinkedDimension(highlightedBlockInfo).GetBlock()->SetPortal(selectedFace);
         }
+        Portal::GetBlockInLinkedDimension(highlightedBlockInfo).m_chunk->SetHighPriorityChunkDirtyAndAddToDirtyList();
         currentChunk->SetHighPriorityChunkDirtyAndAddToDirtyList();
         BlockInfo::SetDirtyFlagAndAddToDirtyList(highlightedBlockInfo);
         return;
@@ -650,6 +655,7 @@ RaycastResult3D World::Raycast(const Vector3& start, const Vector3& end) const
         result.impactFraction = 0.0f;
         result.impactPosition = start;
         result.impactTileCoords = rayCoords;
+        result.impactedBlockInfo = currentInfo;
         result.impactSurfaceNormal = Vector3Int(0, 0, 0);
         if (start.x == (int)start.x)
             result.impactSurfaceNormal.x = -2;

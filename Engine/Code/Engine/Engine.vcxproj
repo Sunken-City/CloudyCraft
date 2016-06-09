@@ -33,6 +33,7 @@
     <ClCompile Include="Input\Console.cpp" />
     <ClCompile Include="Input\InputOutputUtils.cpp" />
     <ClCompile Include="Input\InputSystem.cpp" />
+    <ClCompile Include="Input\Logging.cpp" />
     <ClCompile Include="Input\XInputController.cpp" />
     <ClCompile Include="Input\XMLUtils.cpp" />
     <ClCompile Include="Math\Dice.cpp" />
@@ -93,6 +94,7 @@
     <ClInclude Include="Input\Console.hpp" />
     <ClInclude Include="Input\InputOutputUtils.hpp" />
     <ClInclude Include="Input\InputSystem.hpp" />
+    <ClInclude Include="Input\Logging.hpp" />
     <ClInclude Include="Input\XInputController.hpp" />
     <ClInclude Include="Input\XMLUtils.hpp" />
     <ClInclude Include="Math\Dice.hpp" />

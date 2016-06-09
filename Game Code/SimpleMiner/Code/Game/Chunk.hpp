@@ -23,6 +23,7 @@ public:
 	bool IsInFrustum(const Vector3& cameraXYZ, const WorldPosition& playerPosition) const;
 	void GenerateSaveData(std::vector<unsigned char>& data);
 	void LoadChunkFromData(std::vector<unsigned char>& data);
+	void AttemptCleanUpRenderData();
 
 	//LIGHTING//////////////////////////////////////////////////////////////////////////
 	void SetBlockDirtyAndAddToDirtyList(LocalIndex blockToDirtyIndex);
